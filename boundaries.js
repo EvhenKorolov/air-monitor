@@ -71,7 +71,7 @@ class CivilBoundaryMap{
     if(!count)throw Error('No matching boundary names');this.loaded[level]=true;
    }catch(e){console.warn('[AIR MONITOR boundaries]',level,e);}
   }));
-  this.loading=false;this.retry.hidden=this.loaded.oblast&&this.loaded.district;this.render(this.data);
+  this.loading=false;this.retry.hidden=this.loaded.oblast&&this.loaded.district;this.render(this.data);this.map.fire('civilboundariesloaded');
  }
  paint(layer,state,{selected=false,district=false,outline=false,label=''}){
   const type=this.type(state),active=state.status==='active'&&!outline;

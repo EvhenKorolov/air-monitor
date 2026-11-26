@@ -491,3 +491,18 @@ html,body{min-height:100%;background:#0b1019}body{padding:calc(12px + var(--safe
 .no-zone-pulse .civil-zone-active{animation:none;filter:none}
 @media(prefers-reduced-motion:reduce){.civil-zone-active{animation:none!important;filter:none!important}}
 @media(min-width:800px){#map{height:auto;min-height:480px}}
+
+/* Private visitor location: separate from the public civil alert layer. */
+.location-panel{display:grid;gap:6px;padding:9px 10px;background:#101925;border-top:1px solid #ffffff20;color:#b9c5d5;font-size:11px;line-height:1.45}
+.location-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.location-actions button{display:flex;align-items:center;justify-content:center;gap:7px;padding:8px 10px;font-size:12px;border-radius:10px}
+.location-actions button[hidden]{display:none}
+#locate{color:#89c4ff;border-color:#559fff60;background:linear-gradient(145deg,#559fff20,#559fff08)}
+#locate svg{width:19px;height:19px;flex:none}#locate[aria-busy="true"] svg{animation:location-wait 1.5s ease-in-out infinite}
+#location-privacy{font-size:10px;color:#8796a9}
+.own-location-icon{background:none;border:0;pointer-events:none}
+.own-location-dot{position:absolute;inset:3px;border-radius:50%;background:#4199ff;border:3px solid #fff;box-shadow:0 0 9px #4199ffbb;isolation:isolate}
+.own-location-dot:before{content:'';position:absolute;inset:-6px;border-radius:50%;border:2px solid #62aaff;animation:own-location-pulse 2.5s ease-out infinite;z-index:-1}
+@keyframes own-location-pulse{0%{transform:scale(.85);opacity:.8}100%{transform:scale(1.8);opacity:0}}
+@keyframes location-wait{50%{opacity:.4}}
+@media(prefers-reduced-motion:reduce){.own-location-dot:before,#locate[aria-busy="true"] svg{animation:none!important}}

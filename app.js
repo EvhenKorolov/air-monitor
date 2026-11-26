@@ -78,6 +78,8 @@ async function refresh(){
   if(wasOnline&&previous.status!=='active'&&get(selected()).status==='active')beep();
  }catch(e){failed=true;lastError=e.name==='AbortError'?'Час очікування API вичерпано':e instanceof TypeError?'Мережева помилка або CORS':String(e.message||e);console.error('[AIR MONITOR]',e)}finally{busy=false;$('refresh').disabled=false;$('refresh').setAttribute('aria-busy','false');render()}
 }
-const boundaryMap=map?new CivilBoundaryMap(map,regions,TYPES,{onSelect:r=>{$('region').value=r;render()}}):null;
+let ownLocation=null;
+const boundaryMap=map?new CivilBoundaryMap(map,regions,TYPES,{onSelect:r=>{ownLocation?.manualSelection();$('region').value=r;render()}}):null;
 if(boundaryMap)boundaryMap.load();else $('geometry-status').textContent='Карта недоступна';
-$('region').onchange=render;$('filter').onchange=render;$('refresh').onclick=refresh;refresh();setInterval(timer,1000);setInterval(refresh,15000);setInterval(render,30000);
+if(map&&boundaryMap){ownLocation=new OwnLocation(map,boundaryMap,tg,{parents:BOUNDARY_PARENTS,label:name,onSelect:r=>{if(regionNames.has(r)){$('region').value=r;render();}}});ownLocation.start();}else{$('locate').disabled=true;$('location-status').textContent='Карта недоступна';}
+$('region').onchange=()=>{ownLocation?.manualSelection();render();};$('filter').onchange=render;$('refresh').onclick=refresh;refresh();setInterval(timer,1000);setInterval(refresh,15000);setInterval(render,30000);
