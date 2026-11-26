@@ -554,3 +554,9 @@ body{padding-bottom:calc(var(--sheet-peek) + var(--sheet-bottom) + 24px)}
 .region-summary{padding:6px 9px;border-left:2px solid #8693a5;background:#ffffff05;border-radius:4px;overflow-wrap:anywhere}
 #mode[data-online="true"]{color:#89c4ff;background:#4199ff13;border-color:#4199ff55}
 #mode[data-online="false"]{color:#a1aebe;background:#8693a515;border-color:#8693a544}
+
+/* Independent municipal selector. */
+#city-select{width:100%;min-width:0;}
+#city-select[hidden]{display:none!important;}
+.event[role="button"]{cursor:pointer;}
+.event[role="button"]:focus-visible{outline:2px solid #64aaff;outline-offset:-2px;}

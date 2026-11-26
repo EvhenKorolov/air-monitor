@@ -1,49 +1,18 @@
-# Air Monitor v8 — collapsible bottom sheet
+# Air Monitor v12 — городские гражданские тревоги
 
-Frontend update to the v7 site. Deploy all files in this directory to the root of your existing GitHub Pages repository. The API URL remains `https://ittusovkaeuserver.herokuapp.com/api/alerts`. The v5 Python API is unchanged. No extra alert services or credentials.
+Основа: предоставленный архив v11. Добавлен отдельный уровень `cities` без изменения `alarm.py` и без сторонних API. Существующие GeoJSON областей и районов оставьте в репозитории.
 
-## Boundary data
+## Установка
+1. Замените `services/air_monitor_api.py` в боте, выполните деплой Heroku.
+2. Замените на GitHub Pages `index.html`, `app.js`, `style.css` и добавьте `city-status.js` из `web/`. Если установлена более старая версия сайта, скопируйте весь `web/`, не удаляя `data/*.geojson`.
+3. Проверьте `/api/alerts`: поле `cities` появляется сразу, но заполняется только новыми явными гражданскими объявлениями. Старые события не загружаются.
 
-Source: [Astaryon/UA_geojson](https://github.com/Astaryon/UA_geojson), based on 2020 administrative geography; credit to the upstream authors and Федір Гонца. The project states that its data is under CC BY 4.0: https://creativecommons.org/licenses/by/4.0/. Boundaries are administrative, not a map of military objects or territorial control.
+## Поведение
+- 36 городов (23 областных центра вне Киева, Симферополь и 12 дополнительных городов); Киев и Севастополь остаются в прежнем `regions`.
+- Пример формата: `🟢 13:34 Відбій повітряної тривоги в м. Запоріжжя!` -> городское событие `ended`.
+- Отдельный список городов, статусы в нижней панели и фиксированные круговые маркеры муниципальных центров при наличии явных городских объявлений. Это не контуры городов и не позиции объектов. Координаты приблизительные. Нет автоматического определения города по GPS: границы городов отсутствуют; по GPS выбираются область и район как в v11.
+- Районный или областной активный статус имеет приоритет над городским отбоем. Новое городское объявление об активной тревоге не окрашивает всю область или район красным, но исключает отображение устаревшего широкого отбоя. Новое широкое объявление вытесняет старые локальные записи.
+- Сервер по-прежнему использует только явные гражданские объявления доверенных каналов. Не является официальной системой оповещения. Истечение TTL и отсутствие данных не означают отбой.
 
-The app first requests `data/regiony.geojson` and `data/rayony.geojson` from the Pages repository, then tries the original raw GitHub URLs. The raw files could not be downloaded in the build environment, so are NOT included. For reliable hosting, download them in PowerShell from the project root:
-
-```powershell
-New-Item -ItemType Directory -Force data | Out-Null
-Invoke-WebRequest 'https://raw.githubusercontent.com/Astaryon/UA_geojson/main/regiony.geojson' -OutFile 'data/regiony.geojson'
-Invoke-WebRequest 'https://raw.githubusercontent.com/Astaryon/UA_geojson/main/rayony.geojson' -OutFile 'data/rayony.geojson'
-```
-
-Commit the data directory as well. No Python change. If boundaries fail to load, the existing region-centre fallback remains visible, labelled as approximate administrative markers; the map reports how many keys matched. Name matching uses exact aliases, including known district renames, not guessed coordinates. Source properties and real coverage need to be checked with the downloaded files. No hromada/subdistrict geometry or inferred danger zones are used.
-
-## Status rules
-
-- Explicit whole-oblast alert: full oblast fill.
-- `scope: district`: the oblast remains neutral; only districts with an explicit status receive their own fill. Unknown districts never inherit an aggregate alert.
-- A district all-clear never cancels an active whole-oblast alert.
-- Offline/stale: neutral map; no active animation.
-- Pulse can be disabled; reduced-motion preference respected. No rapid flashes.
-- Map click selects the parent region; tooltips distinguish statuses.
-
-## Tests
-
-Run `node --check app.js`, `node --check boundaries.js`, and `node test-boundaries.cjs`. Tests use synthetic feature properties. Live GeoJSON and Telegram WebView were not verified.
-
-## Visitor geolocation
-
-- Telegram Mini App: `Telegram.WebApp.LocationManager` (Bot API 8.0+) with native permission prompt. Regular HTTPS browser: `navigator.geolocation.watchPosition`. A denied native permission is not bypassed.
-- Requests location at opening. The first valid fix selects the containing oblast using local GeoJSON polygons (including polygon holes and multipolygons), and fits the map to its bounds. The district is shown when its polygon is available. The detected region is approximate, not an official location determination.
-- Blue marker and accuracy circle update while the page is visible. Telegram checks every 30 seconds after consent, browser uses location callbacks. The map does not jump while reading another region. Tap “Моя геопозиція” to recenter and select your current region again. Tap “Вимкнути” to stop requests and remove the marker.
-- No coordinates, user identifier or location history are sent to Heroku, Telegram bot, storage or geocoding service by the application. The underlying OpenStreetMap tile requests reveal the viewed map area to the tile provider; Telegram/OS manages location permissions.
-- No boundaries or outside coverage: marker remains usable, region is not guessed. Missing city boundaries may affect the city/oblast distinction. The accuracy circle is an estimate; do not rely on the selected region for decisions about leaving shelter.
-- Keep your existing `data/*.geojson` when deploying. They are not included in the archive. No changes to Python or Heroku.
-- Tests: `node --check geolocation.js` and `node test-geolocation.cjs`. Synthetic geometry and mocked browser callbacks; real GPS and Telegram clients have not been tested.
-
-## v8 — нижня панель
-
-- Панель «Райони та оголошення» згорнута при відкритті. Потягніть ручку вгору або натисніть її, щоб розгорнути; потягніть вниз, натисніть ручку, Escape або поза панеллю, щоб згорнути.
-- Дві колонки з незалежним вертикальним прокручуванням; фільтр стрічки збережено. Автоматичні оновлення намагаються зберегти scrollTop списків.
-- На мобільному екрані компактніші картки, нижній safe-area та місце для згорнутої панелі.
-- Змінені index.html, style.css, app.js; новий bottom-sheet.js. Версії ресурсів v=8. Сервер, джерела даних та геолокація без змін.
-- Перевірено синтаксис JS, існуючі тести меж/геолокації та ізольований інтерфейс панелі в Chromium (320×640, 390×844, 1024×768, 844×390), миша, імітація сенсорного свайпу, Escape, закриття поза панеллю, незалежна прокрутка. Зовнішні ресурси, реальний Telegram WebView та Heroku не перевірено.
-- Збережіть наявні data/*.geojson при оновленні сайту.
+## Проверка
+`python -m unittest discover -s tests -v` (28 тестов). В `web/`: `node test-cities.cjs`, `node test-selected-status.cjs`, `node test-boundaries.cjs`, `node test-geolocation.cjs`, `node --check` всех JS. Проверены локально. Heroku, реальные каналы, Telegram WebView и реальные географические границы не тестировались.

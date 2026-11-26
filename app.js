@@ -22,20 +22,45 @@ const TYPES = {
  clear:{label:'Відбій тривоги',icon:'✅',theme:'green',color:'#35d878',anim:'clear'},
  unknown:{label:'Немає актуальних даних',icon:'⚪',theme:'gray',color:'#8693a5',anim:'default'}
 };
-let districts={},events=[],publicAdvisories=[],soundEnabled=false,audio=null;
+let districts={},cities={},events=[],publicAdvisories=[],soundEnabled=false,audio=null;
 const validType=t=>['general','drone','missile','ballistic','kab','mixed'].includes(t)?t:'general';
 const selected=()=>$('region').value;
 const selectedDistrict=()=>$('district-select').value||null;
-function selectArea(region,district=null){
+const selectedCity=()=>$('city-select').value||null;
+function cityOptions(city=null){
+ const sel=$('city-select'),r=selected(),d=selectedDistrict();sel.replaceChildren();
+ const all=document.createElement('option');all.value='';all.textContent='Без вибору міста';sel.append(all);
+ const keys=Object.keys(CITY_CATALOG).filter(c=>CITY_CATALOG[c].region===r&&(!d||CITY_CATALOG[c].district===d)).sort((a,b)=>a.localeCompare(b,'uk'));
+ for(const c of keys){const o=document.createElement('option');o.value=c;o.textContent=c;sel.append(o)}
+ sel.hidden=!keys.length;sel.value=keys.includes(city)?city:'';
+}
+function selectArea(region,district=null,city=null){
  if(!regionNames.has(region))return;
  $('region').value=region;
  const select=$('district-select');select.replaceChildren();
  const all=document.createElement('option');all.value='';all.textContent='Уся область / місто';select.append(all);
  const keys=Object.keys(BOUNDARY_PARENTS).filter(d=>BOUNDARY_PARENTS[d]===region).sort((a,b)=>a.localeCompare(b,'uk'));
  for(const d of keys){const o=document.createElement('option');o.value=d;o.textContent=d;select.append(o)}
- select.hidden=!keys.length;select.value=keys.includes(district)?district:'';
+ select.hidden=!keys.length;select.value=keys.includes(district)?district:'';cityOptions(city);
 }
-function selectedState(offline=stale()){return selectedZoneState(states,districts,BOUNDARY_PARENTS,selected(),selectedDistrict(),offline)}
+function getCityState(city,offline=stale()){
+ const meta=CITY_CATALOG[city];if(!meta)return {status:'unknown'};
+ const own=cities[city];const d=selectedZoneState(states,districts,BOUNDARY_PARENTS,meta.region,meta.district,offline);
+ return civilCityState(states[meta.region],d,own,offline);
+}
+function selectedState(offline=stale()){const c=selectedCity();return c?getCityState(c,offline):selectedZoneState(states,districts,BOUNDARY_PARENTS,selected(),selectedDistrict(),offline)}
+const cityLayer=map?L.layerGroup().addTo(map):null;
+function renderCities(offline){
+ if(!cityLayer)return;cityLayer.clearLayers();if(offline)return;
+ for(const [c,meta] of Object.entries(CITY_CATALOG)){
+  // Show only independently reported municipal statuses, not all city centres.
+  if(!cities[c]||cities[c].status==='unknown')continue;
+  const state=getCityState(c,false),v=view(state);
+  const m=L.circleMarker([meta.lat,meta.lng],{radius:8,color:'#fff',weight:2,fillColor:v.color,fillOpacity:.95,pane:'markerPane'}).addTo(cityLayer);
+  const label=document.createElement('span');label.textContent=c+' · '+v.label+' · статус міста';m.bindTooltip(label);
+  m.on('click',()=>{ownLocation?.manualSelection();selectArea(meta.region,meta.district,c);render()});
+ }
+}
 function regionStatusText(a){return a.status==='active'&&a.scope==='district'?'Тривога в частині області':view(a).label;}
 
 function get(r){return states[r]||{status:'unknown'}}
@@ -58,34 +83,39 @@ function renderPublicAdvisories(offline){
  }
 }
 function render(){
- const offline=stale(),district=selectedDistrict(),a=selectedState(offline),v=view(a),s=a.status,region=offline?{status:'unknown'}:get(selected());
+ const offline=stale(),district=selectedDistrict(),city=selectedCity(),a=selectedState(offline),v=view(a),s=a.status,region=offline?{status:'unknown'}:get(selected());
  $('widget').className='theme-'+v.theme;
  $('status-text').textContent=!district&&s==='active'&&a.scope==='district'?'Тривога в частині області':v.label;
  $('status-badge').textContent=s==='active'?'АКТИВНА':s==='ended'?'ВІДБІЙ':'НЕВІДОМО';
  $('threat-icon').textContent=v.icon;$('threat-icon').className='icon anim-'+v.anim;
- $('threat-text').textContent=district||name(selected());
+ $('threat-text').textContent=city||district||name(selected());
  const summary=$('region-summary');
  const ownRows=offline?[]:Object.values(districts).filter(x=>x.region===selected());
  const activeDistricts=ownRows.filter(x=>x.status==='active').length,endedDistricts=ownRows.filter(x=>x.status==='ended').length;
- summary.hidden=!district&&!ownRows.length;
- summary.textContent=(district?name(selected())+' · '+regionStatusText(region):'Окремі районні повідомлення')+(ownRows.length?' · Тривога: '+activeDistricts+' · Відбій: '+endedDistricts:'');
- if(!district&&region.status==='unknown'&&endedDistricts)summary.textContent+=' · Відбій усієї області не підтверджено';
+ const cityRows=offline?[]:Object.keys(cities).filter(c=>cities[c].region===selected());
+ const cityActive=cityRows.filter(c=>getCityState(c,false).status==='active').length;
+ summary.hidden=!city&&!district&&!ownRows.length&&!cityRows.length;
+ summary.textContent=((district||city)?name(selected())+' · '+regionStatusText(region):'Окремі повідомлення районів і міст')+(ownRows.length?' · Тривога: '+activeDistricts+' · Відбій: '+endedDistricts:'');
+ if(cityRows.length)summary.textContent+=' · Міста: '+cityRows.length+' · Тривога: '+cityActive;
+ if(!city&&!district&&region.status==='unknown'&&(endedDistricts||cityRows.length))summary.textContent+=' · Відбій усієї області не підтверджено';
 
  const reasonUnknown=s==='active'&&kind(a)==='general';
  const previousReason=reasonUnknown&&a.last_reported_threat_type&&Number.isFinite(a.last_reported_threat_at_ms)?' · Раніше зазначено: '+TYPES[a.last_reported_threat_type].label+' ('+dateText(a.last_reported_threat_at_ms)+')':'';
- $('threat-caption').textContent=v.label+(reasonUnknown?' · Причину не вказано':'')+(!district&&s==='active'&&a.scope==='district'?' · частина області':'')+previousReason+(district&&s!=='unknown'&&a===region?' · за статусом області':'');
+ $('threat-caption').textContent=v.label+(reasonUnknown?' · Причину не вказано':'')+(!city&&!district&&s==='active'&&a.scope==='district'?' · частина області':'')+previousReason+(city?' · статус міста або ширшої території':'')+(!city&&district&&s!=='unknown'&&a===region?' · за статусом області':'');
  $('live-label').textContent=offline?'НЕАКТУАЛЬНО':s==='active'?'LIVE':'СТАТУС';$('mode').textContent=offline?'OFFLINE':'ONLINE';$('mode').dataset.online=String(!offline);
  $('updated').textContent=updated?'Зв’язок перевірено: '+dateText(updated):'Немає даних';
  $('active').textContent=offline?'—':Object.values(states).filter(a=>a.status==='active').length;
  $('known').textContent=offline?'—':Object.values(states).filter(a=>a.status!=='unknown').length;
  renderPublicAdvisories(offline);
  if(boundaryMap)boundaryMap.render({states,districts,offline,selected:selected(),selectedDistrict:district});
+ renderCities(offline);
  const d=$('districts'),districtScroll=d.scrollTop;d.replaceChildren();
  if(!offline)Object.entries(districts).filter(([,x])=>x.region===selected()).sort((a,b)=>a[0].localeCompare(b[0],'uk')).forEach(([label,x])=>{const v=view(x);d.append(row(v.icon+' '+label,v.label,v.color))});
- if(!d.children.length)d.textContent='Немає окремих актуальних оголошень для районів';
+ if(!offline)Object.entries(cities).filter(([c,x])=>x.region===selected()).sort((a,b)=>a[0].localeCompare(b[0],'uk')).forEach(([c,x])=>{const state=getCityState(c,false),v=view(state),item=row(v.icon+' '+c,v.label+' · місто',v.color);item.tabIndex=0;item.setAttribute('role','button');const choose=()=>{ownLocation?.manualSelection();selectArea(x.region,CITY_CATALOG[c].district,c);render()};item.onclick=choose;item.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();choose()}};d.append(item)});
+ if(!d.children.length)d.textContent='Немає окремих актуальних оголошень для районів і міст';
  d.scrollTop=districtScroll;
  const feed=$('feed'),feedScroll=feed.scrollTop;feed.replaceChildren();const filter=$('filter').value;
- if(!offline)events.filter(x=>filter==='all'||kind(x)===filter).slice(0,20).forEach(x=>{const v=view(x);feed.append(row(v.icon+' '+v.label+' · '+(x.district||name(x.region)),dateText(x.at_ms)+(x.district?' · '+name(x.region):''),v.color))});
+ if(!offline)events.filter(x=>filter==='all'||kind(x)===filter).slice(0,20).forEach(x=>{const v=view(x);feed.append(row(v.icon+' '+v.label+' · '+(x.city||x.district||name(x.region)),dateText(x.at_ms)+(x.district?' · '+name(x.region):''),v.color))});
  if(!feed.children.length)feed.textContent='Немає актуальних повідомлень за цим фільтром';
  feed.scrollTop=feedScroll;
  $('notice').textContent=offline?(lastError?'API OFFLINE: '+lastError:'Немає актуального зв’язку'):'Статуси за повідомленнями підключених каналів. Невідомий статус не означає відбій. Заливка показує адміністративні зони, а не місця перебування об’єктів.';
@@ -110,9 +140,10 @@ async function refresh(){
   if(!data.updated_at_ms||Date.now()-data.updated_at_ms>120000||data.updated_at_ms>Date.now()+60000)throw Error('Дані API застаріли або час пристрою відрізняється');
   const previous=get(selected()),previousArea=selectedState(),wasOnline=!stale(),next={};for(const [r] of regions)next[r]=clean(data.regions[r]);
   const nextDistricts={};if(data.districts&&typeof data.districts==='object'&&!Array.isArray(data.districts))for(const [d,x] of Object.entries(data.districts))if(x&&regionNames.has(x.region))nextDistricts[d]={...clean(x),region:x.region};
-  const nextEvents=Array.isArray(data.events)?data.events.filter(x=>x&&regionNames.has(x.region)&&['active','ended'].includes(x.status)&&Number.isFinite(x.at_ms)).map(x=>({...clean(x),region:x.region,district:typeof x.district==='string'?x.district:null,at_ms:x.at_ms})).sort((a,b)=>b.at_ms-a.at_ms):[];
+  const nextCities={};if(data.cities&&typeof data.cities==='object'&&!Array.isArray(data.cities))for(const [c,x] of Object.entries(data.cities)){const m=Object.prototype.hasOwnProperty.call(CITY_CATALOG,c)?CITY_CATALOG[c]:null;if(m&&x&&m.region===x.region&&m.district===x.district)nextCities[c]={...clean(x),region:m.region,district:m.district};}
+  const nextEvents=Array.isArray(data.events)?data.events.filter(x=>x&&regionNames.has(x.region)&&['active','ended'].includes(x.status)&&Number.isFinite(x.at_ms)).map(x=>({...clean(x),region:x.region,district:typeof x.district==='string'?x.district:null,city:Object.prototype.hasOwnProperty.call(CITY_CATALOG,x.city)?x.city:null,at_ms:x.at_ms})).sort((a,b)=>b.at_ms-a.at_ms):[];
   publicAdvisories=Array.isArray(data.public_advisories)?[...new Set(data.public_advisories.map(x=>x?.threat_type).filter(x=>['drone','missile','ballistic','kab'].includes(x)))]:[];
-  states=next;districts=nextDistricts;events=nextEvents;updated=data.updated_at_ms;failed=false;lastError='';
+  states=next;districts=nextDistricts;cities=nextCities;events=nextEvents;updated=data.updated_at_ms;failed=false;lastError='';
   if(wasOnline&&((previous.status!=='active'&&get(selected()).status==='active')||(previousArea.status!=='active'&&selectedState().status==='active')))beep();
  }catch(e){failed=true;lastError=e.name==='AbortError'?'Час очікування API вичерпано':e instanceof TypeError?'Мережева помилка або CORS':String(e.message||e);console.error('[AIR MONITOR]',e)}finally{busy=false;$('refresh').disabled=false;$('refresh').setAttribute('aria-busy','false');render()}
 }
@@ -121,4 +152,4 @@ let ownLocation=null;
 const boundaryMap=map?new CivilBoundaryMap(map,regions,TYPES,{onSelect:(r,d)=>{ownLocation?.manualSelection();selectArea(r,d);render()}}):null;
 if(boundaryMap)boundaryMap.load();else $('geometry-status').textContent='Карта недоступна';
 if(map&&boundaryMap){ownLocation=new OwnLocation(map,boundaryMap,tg,{parents:BOUNDARY_PARENTS,label:name,onSelect:(r,d)=>{selectArea(r,d);render();}});ownLocation.start();}else{$('locate').disabled=true;$('location-status').textContent='Карта недоступна';}
-$('region').onchange=()=>{ownLocation?.manualSelection();selectArea(selected());render();};$('district-select').onchange=()=>{ownLocation?.manualSelection();render();};$('filter').onchange=render;$('refresh').onclick=refresh;refresh();setInterval(timer,1000);setInterval(refresh,15000);setInterval(render,30000);
+$('region').onchange=()=>{ownLocation?.manualSelection();selectArea(selected());render();};$('district-select').onchange=()=>{ownLocation?.manualSelection();cityOptions();render();};$('city-select').onchange=()=>{ownLocation?.manualSelection();render();};$('filter').onchange=render;$('refresh').onclick=refresh;refresh();setInterval(timer,1000);setInterval(refresh,15000);setInterval(render,30000);
