@@ -1,6 +1,6 @@
-# Air Monitor v7 — administrative polygons and own location
+# Air Monitor v8 — collapsible bottom sheet
 
-Frontend update to the v6 site. Deploy all files in this directory to the root of your existing GitHub Pages repository. The API URL remains `https://ittusovkaeuserver.herokuapp.com/api/alerts`. The v5 Python API is unchanged. No extra alert services or credentials.
+Frontend update to the v7 site. Deploy all files in this directory to the root of your existing GitHub Pages repository. The API URL remains `https://ittusovkaeuserver.herokuapp.com/api/alerts`. The v5 Python API is unchanged. No extra alert services or credentials.
 
 ## Boundary data
 
@@ -38,3 +38,12 @@ Run `node --check app.js`, `node --check boundaries.js`, and `node test-boundari
 - No boundaries or outside coverage: marker remains usable, region is not guessed. Missing city boundaries may affect the city/oblast distinction. The accuracy circle is an estimate; do not rely on the selected region for decisions about leaving shelter.
 - Keep your existing `data/*.geojson` when deploying. They are not included in the archive. No changes to Python or Heroku.
 - Tests: `node --check geolocation.js` and `node test-geolocation.cjs`. Synthetic geometry and mocked browser callbacks; real GPS and Telegram clients have not been tested.
+
+## v8 — нижня панель
+
+- Панель «Райони та оголошення» згорнута при відкритті. Потягніть ручку вгору або натисніть її, щоб розгорнути; потягніть вниз, натисніть ручку, Escape або поза панеллю, щоб згорнути.
+- Дві колонки з незалежним вертикальним прокручуванням; фільтр стрічки збережено. Автоматичні оновлення намагаються зберегти scrollTop списків.
+- На мобільному екрані компактніші картки, нижній safe-area та місце для згорнутої панелі.
+- Змінені index.html, style.css, app.js; новий bottom-sheet.js. Версії ресурсів v=8. Сервер, джерела даних та геолокація без змін.
+- Перевірено синтаксис JS, існуючі тести меж/геолокації та ізольований інтерфейс панелі в Chromium (320×640, 390×844, 1024×768, 844×390), миша, імітація сенсорного свайпу, Escape, закриття поза панеллю, незалежна прокрутка. Зовнішні ресурси, реальний Telegram WebView та Heroku не перевірено.
+- Збережіть наявні data/*.geojson при оновленні сайту.

@@ -45,12 +45,14 @@ function render(){
  $('active').textContent=offline?'—':Object.values(states).filter(a=>a.status==='active').length;
  $('known').textContent=offline?'—':Object.values(states).filter(a=>a.status!=='unknown').length;
  if(boundaryMap)boundaryMap.render({states,districts,offline,selected:selected()});
- const d=$('districts');d.replaceChildren();
+ const d=$('districts'),districtScroll=d.scrollTop;d.replaceChildren();
  if(!offline)Object.entries(districts).filter(([,x])=>x.region===selected()).sort((a,b)=>a[0].localeCompare(b[0],'uk')).forEach(([label,x])=>{const v=view(x);d.append(row(v.icon+' '+label,v.label,v.color))});
  if(!d.children.length)d.textContent='Немає окремих актуальних оголошень для районів';
- const feed=$('feed');feed.replaceChildren();const filter=$('filter').value;
+ d.scrollTop=districtScroll;
+ const feed=$('feed'),feedScroll=feed.scrollTop;feed.replaceChildren();const filter=$('filter').value;
  if(!offline)events.filter(x=>filter==='all'||kind(x)===filter).slice(0,20).forEach(x=>{const v=view(x);feed.append(row(v.icon+' '+v.label+' · '+(x.district||name(x.region)),dateText(x.at_ms)+(x.district?' · '+name(x.region):''),v.color))});
  if(!feed.children.length)feed.textContent='Немає актуальних повідомлень за цим фільтром';
+ feed.scrollTop=feedScroll;
  $('notice').textContent=offline?(lastError?'API OFFLINE: '+lastError:'Немає актуального зв’язку'):'Статуси за повідомленнями підключених каналів. Невідомий статус не означає відбій. Заливка показує адміністративні зони, а не місця перебування об’єктів.';
  timer();
 }
