@@ -13,6 +13,7 @@ let states={}, updated=0, failed=false, busy=false, lastError='';
 const map=window.L?L.map('map',{minZoom:4,maxZoom:12,preferCanvas:false}).fitBounds([[44.3,22],[52.5,40.3]]):null;
 if(map){L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:12,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);if(window.ResizeObserver)new ResizeObserver(()=>map.invalidateSize()).observe($('map'));else window.addEventListener('resize',()=>map.invalidateSize());}else $('map').textContent='Карта недоступна';
 const TYPES = {
+ mixed:{label:'Кілька типів попереджень',icon:'⚠️',theme:'red',color:'#ff4545',anim:'alert'},
  general:{label:'Повітряна тривога',icon:'🚨',theme:'red',color:'#ff4545',anim:'siren'},
  drone:{label:'Загроза БпЛА',icon:'🛸',theme:'orange',color:'#ff9638',anim:'drone'},
  missile:{label:'Ракетна небезпека',icon:'🚀',theme:'red',color:'#ff4545',anim:'missile'},
@@ -22,7 +23,7 @@ const TYPES = {
  unknown:{label:'Немає актуальних даних',icon:'⚪',theme:'yellow',color:'#8693a5',anim:'default'}
 };
 let districts={},events=[],soundEnabled=false,audio=null;
-const validType=t=>['general','drone','missile','ballistic','kab'].includes(t)?t:'general';
+const validType=t=>['general','drone','missile','ballistic','kab','mixed'].includes(t)?t:'general';
 const selected=()=>$('region').value;
 function get(r){return states[r]||{status:'unknown'}}
 function stale(){return failed||!updated||Date.now()-updated>120000||updated>Date.now()+60000}
@@ -39,7 +40,9 @@ function render(){
  $('status-badge').textContent=s==='active'?'АКТИВНА':s==='ended'?'ВІДБІЙ':'НЕВІДОМО';
  $('threat-icon').textContent=v.icon;$('threat-icon').className='icon anim-'+v.anim;
  $('threat-text').textContent=name(selected());
- $('threat-caption').textContent=v.label+(s==='active'&&a.scope==='district'?' · частина області':'');
+ const reasonUnknown=s==='active'&&kind(a)==='general';
+ const previousReason=reasonUnknown&&a.last_reported_threat_type&&Number.isFinite(a.last_reported_threat_at_ms)?' · Раніше зазначено: '+TYPES[a.last_reported_threat_type].label+' ('+dateText(a.last_reported_threat_at_ms)+')':'';
+ $('threat-caption').textContent=v.label+(reasonUnknown?' · Причину не вказано':'')+(s==='active'&&a.scope==='district'?' · частина області':'')+previousReason;
  $('live-label').textContent=offline?'НЕАКТУАЛЬНО':s==='active'?'LIVE':'СТАТУС';$('mode').textContent=offline?'OFFLINE':'ONLINE';
  $('updated').textContent=updated?'Зв’язок перевірено: '+dateText(updated):'Немає даних';
  $('active').textContent=offline?'—':Object.values(states).filter(a=>a.status==='active').length;
@@ -65,7 +68,7 @@ $('sound').onclick=async()=>{
  if(soundEnabled){soundEnabled=false;}else{try{const C=window.AudioContext||window.webkitAudioContext;if(!C)throw Error('Audio unavailable');audio=audio||new C();await audio.resume();soundEnabled=audio.state==='running';if(!soundEnabled)throw Error('Audio suspended');beep();}catch{soundEnabled=false;$('sound-note').textContent='Звук недоступний у цьому браузері.';}}
  $('sound').textContent=soundEnabled?'🔊 Звук: увімкнено':'🔇 Звук: вимкнено';$('sound').setAttribute('aria-pressed',String(soundEnabled));
 };
-function clean(a){return {status:['active','ended','unknown'].includes(a?.status)?a.status:'unknown',scope:a?.scope==='district'?'district':null,threat_type:validType(a?.threat_type),started_at_ms:Number.isFinite(a?.started_at_ms)?a.started_at_ms:NaN,ended_at_ms:Number.isFinite(a?.ended_at_ms)?a.ended_at_ms:NaN}}
+function clean(a){return {status:['active','ended','unknown'].includes(a?.status)?a.status:'unknown',scope:a?.scope==='district'?'district':null,threat_type:validType(a?.threat_type),last_reported_threat_type:['drone','missile','ballistic','kab'].includes(a?.last_reported_threat_type)?a.last_reported_threat_type:null,last_reported_threat_at_ms:Number.isFinite(a?.last_reported_threat_at_ms)?a.last_reported_threat_at_ms:NaN,started_at_ms:Number.isFinite(a?.started_at_ms)?a.started_at_ms:NaN,ended_at_ms:Number.isFinite(a?.ended_at_ms)?a.ended_at_ms:NaN}}
 const regionNames=new Set(regions.map(([r])=>r));
 async function fetchAlerts(){const c=new AbortController(),timeout=setTimeout(()=>c.abort(),15000);try{const response=await fetch(API_URL,{cache:'no-store',signal:c.signal});if(!response.ok)throw Error('HTTP '+response.status);return await response.json()}finally{clearTimeout(timeout)}}
 async function refresh(){
