@@ -25,7 +25,7 @@ const TYPES = {
  clear:{label:'Відбій тривоги',icon:'✅',theme:'green',color:'#35d878',anim:'clear'},
  unknown:{label:'Немає актуальних даних',icon:'⚪',theme:'gray',color:'#8693a5',anim:'default'}
 };
-let districts={},cities={},events=[],publicAdvisories=[],areaAdvisories=[],soundEnabled=false,audio=null;
+let districts={},cities={},events=[],publicAdvisories=[],areaAdvisories=[],launchPoints=[],soundEnabled=false,audio=null;
 const ALL_VALID_TYPES=['general','drone','jet_uav','molniya','banderol','missile','ballistic','kab','mixed'];
 const validType=t=>ALL_VALID_TYPES.includes(t)?t:'general';
 const selected=()=>$('region').value;
@@ -54,6 +54,24 @@ function getCityState(city,offline=stale()){
 }
 function selectedState(offline=stale()){const c=selectedCity();return c?getCityState(c,offline):selectedZoneState(states,districts,BOUNDARY_PARENTS,selected(),selectedDistrict(),offline)}
 const cityLayer=map?L.layerGroup().addTo(map):null;
+
+const launchLayer=map?L.layerGroup().addTo(map):null;
+function renderLaunchPoints(offline){
+ if(!launchLayer)return;launchLayer.clearLayers();if(offline||!Array.isArray(launchPoints))return;
+ for(const lp of launchPoints){
+  if(!Number.isFinite(lp?.lat)||!Number.isFinite(lp?.lng))continue;
+  const v=TYPES[validType(lp.threat_type)]||TYPES.missile;
+  const html=`<div class="launch-origin-pin" style="--launch-color:${v.color}" title="Місце запуску: ${lp.name}"><span>${v.icon}</span></div>`;
+  const m=L.marker([lp.lat,lp.lng],{
+   icon:L.divIcon({className:'launch-origin-marker',html,iconSize:[34,34],iconAnchor:[17,17]}),
+   title:'Запуск · '+v.label+' · '+lp.name
+  }).addTo(launchLayer);
+  const tip=document.createElement('span');
+  tip.textContent='🚀 Місце запуску ('+v.label+'): '+lp.name;
+  m.bindTooltip(tip);
+ }
+}
+
 function renderCities(offline){
  if(!cityLayer)return;cityLayer.clearLayers();if(offline)return;
  for(const [c,meta] of Object.entries(CITY_CATALOG)){
@@ -123,6 +141,7 @@ function render(){
  renderAreaReasons(offline);
  if(boundaryMap)boundaryMap.render({states,districts,offline,selected:selected(),selectedDistrict:district});
  renderCities(offline);
+ renderLaunchPoints(offline);
  const d=$('districts'),districtScroll=d.scrollTop;d.replaceChildren();
  if(!offline)Object.entries(districts).filter(([,x])=>x.region===selected()).sort((a,b)=>a[0].localeCompare(b[0],'uk')).forEach(([label,x])=>{const v=view(x);d.append(row((civilReasonBadges(x).map(b=>(TYPES[b.type]||TYPES.general).icon).join(' ')||v.icon)+' '+label,v.label+(civilReasonBadges(x).some(b=>b.previous)?' · є раніше зазначені причини':''),v.color))});
  if(!offline)Object.entries(cities).filter(([c,x])=>x.region===selected()).sort((a,b)=>a[0].localeCompare(b[0],'uk')).forEach(([c,x])=>{const state=getCityState(c,false),v=view(state),badges=civilReasonBadges(state).map(b=>(TYPES[b.type]||TYPES.general).icon).join(' ')||v.icon,item=row(badges+' '+c,v.label+' · місто',v.color);item.tabIndex=0;item.setAttribute('role','button');const choose=()=>{ownLocation?.manualSelection();selectArea(x.region,CITY_CATALOG[c].district,c);render()};item.onclick=choose;item.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();choose()}};d.append(item)});
@@ -158,6 +177,7 @@ async function refresh(){
   const nextEvents=Array.isArray(data.events)?data.events.filter(x=>x&&regionNames.has(x.region)&&['active','ended'].includes(x.status)&&Number.isFinite(x.at_ms)).map(x=>({...clean(x),region:x.region,district:typeof x.district==='string'?x.district:null,city:Object.prototype.hasOwnProperty.call(CITY_CATALOG,x.city)?x.city:null,at_ms:x.at_ms})).sort((a,b)=>b.at_ms-a.at_ms):[];
   publicAdvisories=Array.isArray(data.public_advisories)?[...new Set(data.public_advisories.map(x=>x?.threat_type).filter(x=>CIVIL_REASON_TYPES.includes(x)))]:[];
   areaAdvisories=cleanAreaAdvisories(data.area_advisories,next,nextDistricts,nextCities);
+  launchPoints=Array.isArray(data.launch_points)?data.launch_points.filter(x=>x&&Number.isFinite(x.lat)&&Number.isFinite(x.lng)):[];
   states=next;districts=nextDistricts;cities=nextCities;events=nextEvents;updated=data.updated_at_ms;failed=false;lastError='';
   if(wasOnline&&((previous.status!=='active'&&get(selected()).status==='active')||(previousArea.status!=='active'&&selectedState().status==='active')))beep();
  }catch(e){failed=true;lastError=e.name==='AbortError'?'Час очікування API вичерпано':e instanceof TypeError?'Мережева помилка або CORS':String(e.message||e);console.error('[AIR MONITOR]',e)}finally{busy=false;$('refresh').disabled=false;$('refresh').setAttribute('aria-busy','false');render()}
