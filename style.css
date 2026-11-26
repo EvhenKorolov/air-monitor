@@ -571,3 +571,6 @@ body{padding-bottom:calc(var(--sheet-peek) + var(--sheet-bottom) + 24px)}
 .area-reasons[hidden]{display:none}
 #area-reason-list{display:grid;gap:5px;margin:6px 0}
 .previous-area-reason{border:1px dashed #ffffff38!important;opacity:.82}
+
+/* Audio controls */
+#sound-unlock[hidden]{display:none!important}#sound-unlock{width:100%;font-size:12px} .sound-preview-controls{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.sound-preview-controls select{flex:1;min-width:100px;font-size:12px}.sound-preview-controls button{flex:0 0 auto;font-size:12px}.sound-preview-controls :disabled{opacity:.5}#sound-note{line-height:1.4}

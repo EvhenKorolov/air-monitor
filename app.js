@@ -25,7 +25,7 @@ const TYPES = {
  clear:{label:'Відбій тривоги',icon:'✅',theme:'green',color:'#35d878',anim:'clear'},
  unknown:{label:'Немає актуальних даних',icon:'⚪',theme:'gray',color:'#8693a5',anim:'default'}
 };
-let districts={},cities={},events=[],publicAdvisories=[],areaAdvisories=[],soundEnabled=false,audio=null;
+let districts={},cities={},events=[],publicAdvisories=[],areaAdvisories=[];
 const ALL_VALID_TYPES=['general','drone','jet_uav','molniya','banderol','missile','ballistic','kab','mixed'];
 const validType=t=>ALL_VALID_TYPES.includes(t)?t:'general';
 const selected=()=>$('region').value;
@@ -40,6 +40,7 @@ function cityOptions(city=null){
 }
 function selectArea(region,district=null,city=null){
  if(!regionNames.has(region))return;
+ alertSounds.clearPending();
  $('region').value=region;
  const select=$('district-select');select.replaceChildren();
  const all=document.createElement('option');all.value='';all.textContent='Уся область / місто';select.append(all);
@@ -135,15 +136,10 @@ function render(){
  $('notice').textContent=offline?(lastError?'API OFFLINE: '+lastError:'Немає актуального зв’язку'):'Статуси за повідомленнями підключених каналів. Невідомий статус не означає відбій. Заливка показує адміністративні зони, а не місця перебування об’єктів.';
  timer();
 }
-function beep(){
- if(!soundEnabled||!audio||audio.state!=='running')return;
- const t=audio.currentTime;
- for(const offset of [0,.24]){const o=audio.createOscillator(),g=audio.createGain();o.type='sine';o.frequency.value=660;g.gain.setValueAtTime(0,t+offset);g.gain.linearRampToValueAtTime(.10,t+offset+.025);g.gain.exponentialRampToValueAtTime(.001,t+offset+.18);o.connect(g);g.connect(audio.destination);o.start(t+offset);o.stop(t+offset+.19)}
-}
-$('sound').onclick=async()=>{
- if(soundEnabled){soundEnabled=false;}else{try{const C=window.AudioContext||window.webkitAudioContext;if(!C)throw Error('Audio unavailable');audio=audio||new C();await audio.resume();soundEnabled=audio.state==='running';if(!soundEnabled)throw Error('Audio suspended');beep();}catch{soundEnabled=false;$('sound-note').textContent='Звук недоступний у цьому браузері.';}}
- $('sound').textContent=soundEnabled?'🔊 Звук: увімкнено':'🔇 Звук: вимкнено';$('sound').setAttribute('aria-pressed',String(soundEnabled));
-};
+const alertSounds=new AlertSounds({button:$('sound'),note:$('sound-note'),unlockButton:$('sound-unlock'),previewButton:$('sound-preview'),previewSelect:$('sound-preview-type'),documentRef:document,
+ storage:(()=>{try{return window.localStorage}catch{return null}})(),contextFactory:()=>{const C=window.AudioContext||window.webkitAudioContext;return C?new C():null}});
+// Sound is enabled by default; browsers may require a real gesture to unlock it.
+alertSounds.unlock();
 function clean(a){return {status:['active','ended','unknown'].includes(a?.status)?a.status:'unknown',scope:a?.scope==='district'?'district':null,threat_type:validType(a?.threat_type),threat_types:civilReasonList(a?.threat_types,a?.threat_type),last_reported_threat_types:civilReasonList(a?.last_reported_threat_types,a?.last_reported_threat_type),last_reported_threat_type:CIVIL_REASON_TYPES.concat(['mixed']).includes(a?.last_reported_threat_type)?a.last_reported_threat_type:null,last_reported_threat_at_ms:Number.isFinite(a?.last_reported_threat_at_ms)?a.last_reported_threat_at_ms:NaN,started_at_ms:Number.isFinite(a?.started_at_ms)?a.started_at_ms:NaN,ended_at_ms:Number.isFinite(a?.ended_at_ms)?a.ended_at_ms:NaN}}
 const regionNames=new Set(regions.map(([r])=>r));
 async function fetchAlerts(){const c=new AbortController(),timeout=setTimeout(()=>c.abort(),15000);try{const response=await fetch(API_URL,{cache:'no-store',signal:c.signal});if(!response.ok)throw Error('HTTP '+response.status);return await response.json()}finally{clearTimeout(timeout)}}
@@ -152,19 +148,23 @@ async function refresh(){
  try{
   const data=await fetchAlerts();if(!Number.isFinite(data.updated_at_ms)||!data.regions||typeof data.regions!=='object'||Array.isArray(data.regions))throw Error('Некоректний JSON API');
   if(!data.updated_at_ms||Date.now()-data.updated_at_ms>120000||data.updated_at_ms>Date.now()+60000)throw Error('Дані API застаріли або час пристрою відрізняється');
-  const previous=get(selected()),previousArea=selectedState(),wasOnline=!stale(),next={};for(const [r] of regions)next[r]=clean(data.regions[r]);
+  const previousArea=selectedState(false),previousPublic=publicAdvisories.slice(),next={};for(const [r] of regions)next[r]=clean(data.regions[r]);
   const nextDistricts={};if(data.districts&&typeof data.districts==='object'&&!Array.isArray(data.districts))for(const [d,x] of Object.entries(data.districts))if(x&&regionNames.has(x.region))nextDistricts[d]={...clean(x),region:x.region};
   const nextCities={};if(data.cities&&typeof data.cities==='object'&&!Array.isArray(data.cities))for(const [c,x] of Object.entries(data.cities)){const m=Object.prototype.hasOwnProperty.call(CITY_CATALOG,c)?CITY_CATALOG[c]:null;if(m&&x&&m.region===x.region&&m.district===x.district)nextCities[c]={...clean(x),region:m.region,district:m.district};}
   const nextEvents=Array.isArray(data.events)?data.events.filter(x=>x&&regionNames.has(x.region)&&['active','ended'].includes(x.status)&&Number.isFinite(x.at_ms)).map(x=>({...clean(x),region:x.region,district:typeof x.district==='string'?x.district:null,city:Object.prototype.hasOwnProperty.call(CITY_CATALOG,x.city)?x.city:null,at_ms:x.at_ms})).sort((a,b)=>b.at_ms-a.at_ms):[];
   publicAdvisories=Array.isArray(data.public_advisories)?[...new Set(data.public_advisories.map(x=>x?.threat_type).filter(x=>CIVIL_REASON_TYPES.includes(x)))]:[];
   areaAdvisories=cleanAreaAdvisories(data.area_advisories,next,nextDistricts,nextCities);
   states=next;districts=nextDistricts;cities=nextCities;events=nextEvents;updated=data.updated_at_ms;failed=false;lastError='';
-  if(wasOnline&&((previous.status!=='active'&&get(selected()).status==='active')||(previousArea.status!=='active'&&selectedState().status==='active')))beep();
- }catch(e){failed=true;lastError=e.name==='AbortError'?'Час очікування API вичерпано':e instanceof TypeError?'Мережева помилка або CORS':String(e.message||e);console.error('[AIR MONITOR]',e)}finally{busy=false;$('refresh').disabled=false;$('refresh').setAttribute('aria-busy','false');render()}
+  const currentArea=selectedState(false);
+  const sounds=warningSoundChanges(previousArea,currentArea,previousPublic,publicAdvisories);
+  const allowed=[...soundTypes(currentArea),...publicAdvisories];
+  if(currentArea.status==='ended')allowed.push('clear');
+  alertSounds.notify(sounds,allowed);
+ }catch(e){alertSounds.clearPending();failed=true;lastError=e.name==='AbortError'?'Час очікування API вичерпано':e instanceof TypeError?'Мережева помилка або CORS':String(e.message||e);console.error('[AIR MONITOR]',e)}finally{busy=false;$('refresh').disabled=false;$('refresh').setAttribute('aria-busy','false');render()}
 }
 selectArea(selected());
 let ownLocation=null;
 const boundaryMap=map?new CivilBoundaryMap(map,regions,TYPES,{onSelect:(r,d)=>{ownLocation?.manualSelection();selectArea(r,d);render()}}):null;
 if(boundaryMap)boundaryMap.load();else $('geometry-status').textContent='Карта недоступна';
 if(map&&boundaryMap){ownLocation=new OwnLocation(map,boundaryMap,tg,{parents:BOUNDARY_PARENTS,label:name,onSelect:(r,d)=>{selectArea(r,d);render();}});ownLocation.start();}else{$('locate').disabled=true;$('location-status').textContent='Карта недоступна';}
-$('region').onchange=()=>{ownLocation?.manualSelection();selectArea(selected());render();};$('district-select').onchange=()=>{ownLocation?.manualSelection();cityOptions();render();};$('city-select').onchange=()=>{ownLocation?.manualSelection();render();};$('filter').onchange=render;$('refresh').onclick=refresh;refresh();setInterval(timer,1000);setInterval(refresh,15000);setInterval(render,30000);
+$('region').onchange=()=>{ownLocation?.manualSelection();selectArea(selected());render();};$('district-select').onchange=()=>{alertSounds.clearPending();ownLocation?.manualSelection();cityOptions();render();};$('city-select').onchange=()=>{alertSounds.clearPending();ownLocation?.manualSelection();render();};$('filter').onchange=render;$('refresh').onclick=refresh;refresh();setInterval(timer,1000);setInterval(refresh,15000);setInterval(render,30000);
