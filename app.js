@@ -10,9 +10,8 @@ $('fullscreen').onclick=full;
 const name=r=>r.startsWith('м.')||r==='АР Крим'?r:r+' область';
 for(const [r] of regions){const o=document.createElement('option');o.value=r;o.textContent=name(r);$('region').append(o)}$('region').value='Запорізька';
 let states={}, updated=0, failed=false, busy=false, lastError='';
-const map=window.L?L.map('map',{minZoom:4}).fitBounds([[44.3,22],[52.5,40.3]]):null;
+const map=window.L?L.map('map',{minZoom:4,maxZoom:12,preferCanvas:false}).fitBounds([[44.3,22],[52.5,40.3]]):null;
 if(map){L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:12,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);if(window.ResizeObserver)new ResizeObserver(()=>map.invalidateSize()).observe($('map'));else window.addEventListener('resize',()=>map.invalidateSize());}else $('map').textContent='Карта недоступна';
-const markers={};for(const [r,lat,lon] of regions){if(!map)break;markers[r]=L.circleMarker([lat,lon],{radius:9,weight:2,color:'#aab4c4',fillOpacity:.65}).addTo(map).bindTooltip(name(r)).on('click',()=>{$('region').value=r;render()});}
 const TYPES = {
  general:{label:'Повітряна тривога',icon:'🚨',theme:'red',color:'#ff4545',anim:'siren'},
  drone:{label:'Загроза БпЛА',icon:'🛸',theme:'orange',color:'#ff9638',anim:'drone'},
@@ -45,19 +44,14 @@ function render(){
  $('updated').textContent=updated?'Зв’язок перевірено: '+dateText(updated):'Немає даних';
  $('active').textContent=offline?'—':Object.values(states).filter(a=>a.status==='active').length;
  $('known').textContent=offline?'—':Object.values(states).filter(a=>a.status!=='unknown').length;
- for(const [r,m] of Object.entries(markers)){
-  const state=offline?{status:'unknown'}:get(r),type=view(state);
-  m.setStyle({color:type.color,fillColor:type.color,radius:r===selected()?12:8,weight:kind(state)==='ballistic'?4:2});
-  const tooltip=document.createElement('span');tooltip.textContent=name(r)+' · '+type.label+(state.scope==='district'?' (частина області)':'');m.setTooltipContent(tooltip);
-  const popup=document.createElement('div');popup.className='alert-popup';const h=document.createElement('strong');h.textContent=name(r);const t=document.createElement('div');t.textContent=type.icon+' '+type.label+(state.scope==='district'?' · частина області':'');popup.append(h,t);if(!m.getPopup())m.bindPopup(popup);else m.setPopupContent(popup);
- }
+ if(boundaryMap)boundaryMap.render({states,districts,offline,selected:selected()});
  const d=$('districts');d.replaceChildren();
  if(!offline)Object.entries(districts).filter(([,x])=>x.region===selected()).sort((a,b)=>a[0].localeCompare(b[0],'uk')).forEach(([label,x])=>{const v=view(x);d.append(row(v.icon+' '+label,v.label,v.color))});
  if(!d.children.length)d.textContent='Немає окремих актуальних оголошень для районів';
  const feed=$('feed');feed.replaceChildren();const filter=$('filter').value;
  if(!offline)events.filter(x=>filter==='all'||kind(x)===filter).slice(0,20).forEach(x=>{const v=view(x);feed.append(row(v.icon+' '+v.label+' · '+(x.district||name(x.region)),dateText(x.at_ms)+(x.district?' · '+name(x.region):''),v.color))});
  if(!feed.children.length)feed.textContent='Немає актуальних повідомлень за цим фільтром';
- $('notice').textContent=offline?(lastError?'API OFFLINE: '+lastError:'Немає актуального зв’язку'):'Статуси за повідомленнями підключених каналів. Невідомий статус не означає відбій. Кольори та позначки показують адміністративні зони, не місця перебування об’єктів.';
+ $('notice').textContent=offline?(lastError?'API OFFLINE: '+lastError:'Немає актуального зв’язку'):'Статуси за повідомленнями підключених каналів. Невідомий статус не означає відбій. Заливка показує адміністративні зони, а не місця перебування об’єктів.';
  timer();
 }
 function beep(){
@@ -84,4 +78,6 @@ async function refresh(){
   if(wasOnline&&previous.status!=='active'&&get(selected()).status==='active')beep();
  }catch(e){failed=true;lastError=e.name==='AbortError'?'Час очікування API вичерпано':e instanceof TypeError?'Мережева помилка або CORS':String(e.message||e);console.error('[AIR MONITOR]',e)}finally{busy=false;$('refresh').disabled=false;$('refresh').setAttribute('aria-busy','false');render()}
 }
+const boundaryMap=map?new CivilBoundaryMap(map,regions,TYPES,{onSelect:r=>{$('region').value=r;render()}}):null;
+if(boundaryMap)boundaryMap.load();else $('geometry-status').textContent='Карта недоступна';
 $('region').onchange=render;$('filter').onchange=render;$('refresh').onclick=refresh;refresh();setInterval(timer,1000);setInterval(refresh,15000);setInterval(render,30000);

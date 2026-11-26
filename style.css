@@ -479,3 +479,15 @@ html,body{min-height:100%;background:#0b1019}body{padding:calc(12px + var(--safe
 
 /* Civil alert type controls and region information */
 .feed-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px}.filter-label{display:flex;align-items:center;gap:8px;font-size:11px;color:#aab4c4;flex-wrap:wrap}.filter-label select{font-size:12px;max-width:100%}#sound{width:100%;text-align:left}#sound[aria-pressed="true"]{border-color:#35d878;color:#35d878}.alert-popup{min-width:125px;line-height:1.6}.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#182230;color:#fff}.leaflet-container .leaflet-popup-close-button{color:#c4d1e0}.leaflet-popup-content{margin:12px 20px 12px 12px}.feed{max-height:340px;overflow:auto}.event{overflow-wrap:anywhere}
+
+/* Polygon layers: slow, bounded pulse with stable visibility. */
+.map-info{position:relative;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 10px;background:#101925;border-top:1px solid #ffffff20;font-size:10px;color:#b9c5d5}
+.map-info span{flex:1 1 180px}.map-info button{font-size:10px;padding:6px 8px;border-radius:8px;white-space:nowrap}.map-info button[hidden]{display:none}
+.mapwrap{display:flex;flex-direction:column}#map{flex:1 1 auto;min-height:340px}
+.leaflet-overlay-pane path,.leaflet-oblastAreas-pane path,.leaflet-districtAreas-pane path{transition:fill .25s,stroke .25s,fill-opacity .25s;stroke-linejoin:round}
+.civil-zone-active{animation:civil-zone-pulse 2.6s ease-in-out infinite;filter:drop-shadow(0 0 2px var(--zone-color,#ff4545))}
+.civil-zone-active.civil-zone-ballistic{animation-duration:2s}
+@keyframes civil-zone-pulse{0%,100%{fill-opacity:.36;stroke-opacity:.82}50%{fill-opacity:.62;stroke-opacity:1}}
+.no-zone-pulse .civil-zone-active{animation:none;filter:none}
+@media(prefers-reduced-motion:reduce){.civil-zone-active{animation:none!important;filter:none!important}}
+@media(min-width:800px){#map{height:auto;min-height:480px}}

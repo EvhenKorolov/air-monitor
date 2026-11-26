@@ -1,20 +1,30 @@
-# Air Monitor — Telegram Mini App
+# Air Monitor v6 — administrative polygons
 
-Прототип гражданской карты статусов воздушных тревог. CSS основан на исходном Liquid Glass виджете. По умолчанию DEMO, все состояния вымышлены. Маркеры — административные центры, не координаты целей. Карта требует доступа к Leaflet CDN и OSM.
+Frontend update to the v5 site. Deploy all files in this directory to the root of your existing GitHub Pages repository. The API URL remains `https://ittusovkaeuserver.herokuapp.com/api/alerts`. The v5 Python API is unchanged. No extra alert services or credentials.
 
-## GitHub Pages
-1. Создайте репозиторий `air-monitor` и загрузите содержимое этой папки в корень ветки main.
-2. Settings → Pages → Deploy from a branch → main / (root).
-3. Откройте опубликованный HTTPS URL; в BotFather настройте Menu Button или Main Mini App на этот URL.
+## Boundary data
 
-## aiogram 3
-```python
-from aiogram.types import MenuButtonWebApp, WebAppInfo
-await bot.set_chat_menu_button(menu_button=MenuButtonWebApp(
-    text='Карта тривог', web_app=WebAppInfo(url='https://USERNAME.github.io/air-monitor/')))
+Source: [Astaryon/UA_geojson](https://github.com/Astaryon/UA_geojson), based on 2020 administrative geography; credit to the upstream authors and Федір Гонца. The project states that its data is under CC BY 4.0: https://creativecommons.org/licenses/by/4.0/. Boundaries are administrative, not a map of military objects or territorial control.
+
+The app first requests `data/regiony.geojson` and `data/rayony.geojson` from the Pages repository, then tries the original raw GitHub URLs. The raw files could not be downloaded in the build environment, so are NOT included. For reliable hosting, download them in PowerShell from the project root:
+
+```powershell
+New-Item -ItemType Directory -Force data | Out-Null
+Invoke-WebRequest 'https://raw.githubusercontent.com/Astaryon/UA_geojson/main/regiony.geojson' -OutFile 'data/regiony.geojson'
+Invoke-WebRequest 'https://raw.githubusercontent.com/Astaryon/UA_geojson/main/rayony.geojson' -OutFile 'data/rayony.geojson'
 ```
 
-## API
-В app.js установите API_URL в HTTPS URL вашего публичного read-only API. Сервер должен возвращать только официальные статусы тревог по областям, разрешить CORS для origin GitHub Pages, и обновлять updated_at_ms при подтвержденном обновлении источника. Никаких токенов в JS. Схема: `{"updated_at_ms": 1790000000000, "regions": {"Запорізька": {"status":"active", "started_at_ms":1789999900000}, "Київська":{"status":"ended","started_at_ms":1789999000000,"ended_at_ms":1789999500000}}}`. Ключи регионов соответствуют regions в app.js. Неизвестный статус — unknown, пропущенные области считаются неизвестными. Все даты — Unix milliseconds. При ошибке API или устаревании более 120 секунд приложение показывает неизвестные статусы. Запрос каждые 15 секунд. API и подключение к источникам не входят в прототип. Лента — последние текущие состояния регионов, не полный журнал.
+Commit the data directory as well. No Python change. If boundaries fail to load, the existing region-centre fallback remains visible, labelled as approximate administrative markers; the map reports how many keys matched. Name matching uses exact aliases, including known district renames, not guessed coordinates. Source properties and real coverage need to be checked with the downloaded files. No hromada/subdistrict geometry or inferred danger zones are used.
 
-Для локальной проверки: `python -m http.server 8000`, открыть http://localhost:8000. Для production оцените правила использования OSM tiles: https://operations.osmfoundation.org/policies/tiles/ .
+## Status rules
+
+- Explicit whole-oblast alert: full oblast fill.
+- `scope: district`: the oblast remains neutral; only districts with an explicit status receive their own fill. Unknown districts never inherit an aggregate alert.
+- A district all-clear never cancels an active whole-oblast alert.
+- Offline/stale: neutral map; no active animation.
+- Pulse can be disabled; reduced-motion preference respected. No rapid flashes.
+- Map click selects the parent region; tooltips distinguish statuses.
+
+## Tests
+
+Run `node --check app.js`, `node --check boundaries.js`, and `node test-boundaries.cjs`. Tests use synthetic feature properties. Live GeoJSON and Telegram WebView were not verified.
