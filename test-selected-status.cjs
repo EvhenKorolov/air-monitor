@@ -1,0 +1,18 @@
+const assert=require('node:assert/strict');
+const {selectedZoneState,zoneState}=require('./boundaries.js');
+const parents={D:'A',E:'A',F:'B'};
+const u={status:'unknown'}, e={status:'ended',region:'A',started_at_ms:10,ended_at_ms:20}, a={status:'active',region:'A',threat_type:'general',started_at_ms:30};
+const s=(states,districts,d,offline=false)=>selectedZoneState(states,districts,parents,'A',d,offline);
+assert.equal(s({A:u},{D:e},'D').status,'ended');
+assert.equal(s({A:u},{D:e},null).status,'unknown');
+assert.equal(s({A:u},{D:e},'E').status,'unknown');
+assert.equal(s({A:u},{D:e},'D',true).status,'unknown');
+assert.equal(s({A:{status:'active'}},{D:e},'D').status,'active');
+assert.equal(s({A:{status:'active',scope:'district'}},{D:e,E:a},'D').status,'ended');
+assert.equal(s({A:{status:'active',scope:'district'}},{D:e,E:a},'E').status,'active');
+assert.equal(s({A:{status:'ended'}},{},'D').status,'ended');
+assert.equal(s({A:u},{D:{...e,region:'B'}},'D').status,'unknown');
+assert.equal(s({A:u},{F:{...e,region:'B'}},'F').status,'unknown');
+assert.equal(s({A:u},{D:e},'D').ended_at_ms,20);
+assert.deepEqual(s({A:u},{D:a},'D'),zoneState(u,a,false));
+console.log('12 status consistency assertions passed');

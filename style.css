@@ -544,3 +544,13 @@ body{padding-bottom:calc(var(--sheet-peek) + var(--sheet-bottom) + 24px)}
 .advisory-icons{display:flex;gap:5px;flex-wrap:wrap}
 .advisory-chip{padding:5px 8px;border-radius:10px;font-size:11px;font-weight:700;color:var(--advisory-color);background:#ffffff0b;border:1px solid var(--advisory-color)}
 .advisory-note{font-size:10px;line-height:1.4;color:#b9c5d5}
+
+/* v11: same neutral status and district selection as the map. */
+.theme-gray{--a:#a1aebe;--s:rgba(134,147,165,.10);--g:rgba(134,147,165,.18);--b:rgba(134,147,165,.30)}
+.theme-gray .dot,.theme-gray .live:before{animation:none}
+.region-controls{display:grid;grid-template-columns:minmax(0,1fr);gap:5px}
+#district-select{font-size:12px;padding:7px 10px;color:#d6dfe9}
+#district-select[hidden],.region-summary[hidden]{display:none!important}
+.region-summary{padding:6px 9px;border-left:2px solid #8693a5;background:#ffffff05;border-radius:4px;overflow-wrap:anywhere}
+#mode[data-online="true"]{color:#89c4ff;background:#4199ff13;border-color:#4199ff55}
+#mode[data-online="false"]{color:#a1aebe;background:#8693a515;border-color:#8693a544}

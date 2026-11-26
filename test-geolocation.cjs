@@ -32,10 +32,10 @@ const pane={style:{}};const handlers={};let focusCount=0;const map={createPane()
 let removed=0;const fakeLayer=()=>({addTo(){return this},setLatLng(){return this},setRadius(){return this},remove(){removed++}});
 global.L={divIcon(){return {}},marker:fakeLayer,circle:fakeLayer,latLngBounds(){return {extend(){return this},isValid(){return true}}}};
 for(const group of boundaries.oblasts.values())for(const l of group)l.getBounds=()=>[];
-let selected=[];const c=new OwnLocation(map,boundaries,null,{parents,label:x=>x,onSelect:x=>selected.push(x)});
-c.start();browserSuccess({coords:{latitude:40.5,longitude:20.5,accuracy:20}});assert.deepEqual(selected,['A']);assert.equal(focusCount,1);
+let selected=[],selectedDistricts=[];const c=new OwnLocation(map,boundaries,null,{parents,label:x=>x,onSelect:(x,d)=>{selected.push(x);selectedDistricts.push(d)}});
+c.start();browserSuccess({coords:{latitude:40.5,longitude:20.5,accuracy:20}});assert.deepEqual(selected,['A']);assert.deepEqual(selectedDistricts,['D']);assert.equal(focusCount,1);
 browserSuccess({coords:{latitude:40.5,longitude:23.5,accuracy:15}});assert.deepEqual(selected,['A']);assert.equal(focusCount,1);
-c.locate();assert.deepEqual(selected,['A','B']);assert.equal(focusCount,2);
+c.locate();assert.deepEqual(selected,['A','B']);assert.deepEqual(selectedDistricts,['D','E']);assert.equal(focusCount,2);
 c.stop();assert.equal(c.fix,null);assert.equal(removed,2);assert.equal(cleared,1);
 browserSuccess({coords:{latitude:40.5,longitude:20.5,accuracy:20}});assert.equal(c.fix,null);
 c.start();browserError({code:1});assert.equal(c.enabled,false);assert.match(node('location-status').textContent,/Доступ заборонено/);

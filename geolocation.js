@@ -100,7 +100,7 @@ class OwnLocation{
   const f=this.fix;if(!f)return;
   const area=localArea(this.boundaries,f.lat,f.lon,this.parents),acc=f.accuracy===null?'точність невідома':'± '+(f.accuracy>=1000?(f.accuracy/1000).toFixed(1)+' км':Math.round(f.accuracy)+' м');
   this.setStatus(area?'Ви тут: '+this.label(area.region)+(area.district?' · '+area.district:'')+' · '+acc:(this.boundaries?.loading?'Геопозицію отримано · очікуємо межі':'Геопозицію отримано · область не визначено')+' · '+acc);
-  if(this.focusPending&&area){this.focusPending=false;this.onSelect(area.region);this.focus(area);}
+  if(this.focusPending&&area){this.focusPending=false;this.onSelect(area.region,area.district);this.focus(area);}
   else if(this.focusPending&&!this.boundaries?.loading&&!this.fallbackFocused){this.fallbackFocused=true;this.focus(null);}
  }
  focus(area){
@@ -110,7 +110,7 @@ class OwnLocation{
  }
  locate(){
   if(this.settingsNeeded&&this.native){try{this.native.openSettings();this.setStatus('Дозвольте доступ у налаштуваннях Telegram, потім натисніть кнопку ще раз.');this.settingsNeeded=false;}catch{this.setStatus('Відкрийте налаштування геолокації Telegram.');}return;}
-  if(this.fix){const f=this.fix,area=localArea(this.boundaries,f.lat,f.lon,this.parents);if(area)this.onSelect(area.region);this.focus(area);if(this.native)this.nativeRequest();return;}
+  if(this.fix){const f=this.fix,area=localArea(this.boundaries,f.lat,f.lon,this.parents);if(area)this.onSelect(area.region,area.district);this.focus(area);if(this.native)this.nativeRequest();return;}
   this.stop(false);this.start();
  }
  manualSelection(){this.focusPending=false;}

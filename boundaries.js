@@ -30,6 +30,13 @@ function zoneState(regionState,districtState,offline){
  }
  return districtState||regionState;
 }
+function selectedZoneState(states,districts,parents,region,district,offline){
+ const regionState=states[region]||UNKNOWN_ZONE;
+ if(offline)return UNKNOWN_ZONE;
+ if(!district||parents[district]!==region)return regionState;
+ const explicit=districts[district]?.region===region?districts[district]:null;
+ return zoneState(regionState,explicit,false);
+}
 function oblastState(state,offline){return offline||!state||state.scope==='district'?UNKNOWN_ZONE:state;}
 async function boundaryFetch(file){
  const urls=['data/'+file,BOUNDARY_SOURCE+file];
@@ -65,7 +72,7 @@ class CivilBoundaryMap{
    try{const geo=await boundaryFetch(file);let count=0;
     for(const f of geo.features){if(!['Polygon','MultiPolygon'].includes(f?.geometry?.type))continue;const key=matchBoundary(f,this.index,allowed);if(!key)continue;
      const parent=level==='district'?BOUNDARY_PARENTS[key]:key;
-     const group=L.geoJSON(f,{pane:level==='district'?'districtAreas':'oblastAreas',renderer:this.renderers[level],style:{color:'#8693a5',fillOpacity:0,weight:1},onEachFeature:(_,layer)=>{layer.on('click',()=>this.onSelect(parent));layer.bindTooltip(document.createElement('span'),{sticky:true});}}).addTo(this.map);
+     const group=L.geoJSON(f,{pane:level==='district'?'districtAreas':'oblastAreas',renderer:this.renderers[level],style:{color:'#8693a5',fillOpacity:0,weight:1},onEachFeature:(_,layer)=>{layer.on('click',()=>this.onSelect(parent,level==='district'?key:null));layer.bindTooltip(document.createElement('span'),{sticky:true});}}).addTo(this.map);
      if(!collection.has(key))collection.set(key,[]);group.eachLayer(layer=>collection.get(key).push(layer));count++;
     }
     if(!count)throw Error('No matching boundary names');this.loaded[level]=true;
@@ -83,12 +90,12 @@ class CivilBoundaryMap{
   this.data=data;const {states,districts,offline,selected}=data;
   for(const [key,layers] of this.oblasts){const state=oblastState(states[key],offline);for(const l of layers)this.paint(l,state,{selected:key===selected,label:this.label(key)});}
   for(const [key,layers] of this.raions){const parent=BOUNDARY_PARENTS[key],region=states[parent]||UNKNOWN_ZONE,explicit=districts[key]?.region===parent?districts[key]:null;
-   const state=zoneState(region,explicit,offline);
+   const state=selectedZoneState(states,districts,BOUNDARY_PARENTS,parent,key,offline);
    // Only actual district declarations add a fill above the oblast layer. Inherited statuses use the oblast fill.
    const own=!offline&&explicit&&!(region.status==='active'&&region.scope!=='district'&&explicit.status!=='active');
    // If the parent geometry is absent, the known district polygon can still display its inherited state.
    const outline=!own&&this.oblasts.has(parent);
-   for(const l of layers)this.paint(l,state,{district:true,outline,label:key});
+   for(const l of layers)this.paint(l,state,{district:true,outline,label:key,selected:key===data.selectedDistrict});
   }
   // Missing boundaries: preserve a clearly labelled point fallback, never colour the entire oblast for a partial alert.
   for(const [key,m] of this.markers){const region=offline?UNKNOWN_ZONE:states[key]||UNKNOWN_ZONE;
@@ -100,4 +107,4 @@ class CivilBoundaryMap{
   if(!this.loading)this.status.textContent=`Межі: ${this.oblasts.size}/${this.regionKeys.size} областей · ${this.raions.size}/${this.districtKeys.size} районів`+(missing?` · ${missing} активних районів без контуру`:'')+(!this.loaded.oblast||!this.loaded.district?' · частина меж недоступна':'');
  }
 }
-if(typeof module!=='undefined')module.exports={boundaryNorm,boundaryAliasIndex,matchBoundary,zoneState,oblastState};
+if(typeof module!=='undefined')module.exports={boundaryNorm,boundaryAliasIndex,matchBoundary,zoneState,oblastState,selectedZoneState};
