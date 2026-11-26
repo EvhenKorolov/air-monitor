@@ -1,0 +1,14 @@
+const assert=require('node:assert/strict');const {civilReasonBadges,cleanAreaAdvisories}=require('./area-reasons.js');
+const t=1000000, s={status:'active',threat_type:'mixed',threat_types:['drone','kab'],last_reported_threat_at_ms:t};
+assert.equal(civilReasonBadges(s,t).length,2);
+const p={...s,threat_type:'general',threat_types:[],last_reported_threat_types:['drone','kab']};
+assert.equal(civilReasonBadges(p,t).length,3);
+assert.equal(civilReasonBadges(p,t+901000).length,1);
+assert.deepEqual(civilReasonBadges({...p,status:'ended'},t),[]);
+assert.deepEqual(civilReasonBadges({...p,scope:'district'},t),[]);
+const a={scope:'region',area_name:'A',region:'A',threat_type:'drone',at_ms:t,reported_as:'previous'};
+assert.equal(cleanAreaAdvisories([a,a],{A:p},{},{},t).length,1);
+assert.equal(cleanAreaAdvisories([{...a,reported_as:'current'}],{A:p},{},{},t).length,0);
+assert.equal(cleanAreaAdvisories([a],{A:{...p,status:'ended'}},{},{},t).length,0);
+assert.equal(cleanAreaAdvisories([a],{A:p},{},{},t+901000).length,0);
+console.log('9 area reason assertions passed');

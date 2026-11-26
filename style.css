@@ -563,3 +563,11 @@ body{padding-bottom:calc(var(--sheet-peek) + var(--sheet-bottom) + 24px)}
 
 /* Static administrative status labels, not threat positions. */
 .civil-status-marker{background:transparent;border:0}.civil-status-badge{width:32px;height:32px;display:grid;place-items:center;border-radius:50%;font-size:17px;background:#16202e;border:2px solid var(--status-color,#8693a5);box-shadow:0 2px 8px #0008;box-sizing:border-box}.civil-status-marker:focus-visible{outline:2px solid #fff;outline-offset:2px}
+/* v14: grouped civil reason badges, historical reasons visually distinct. */
+.civil-badge-group{display:flex;gap:3px;width:max-content;align-items:center}
+.civil-badge-group .civil-status-badge{flex:none}
+.civil-status-badge.previous-reason{border-style:dashed;opacity:.72;background:#242b38}
+.area-reasons{margin:8px 0;padding:10px;border:1px solid #ffffff20;border-radius:14px;background:#ffffff08}
+.area-reasons[hidden]{display:none}
+#area-reason-list{display:grid;gap:5px;margin:6px 0}
+.previous-area-reason{border:1px dashed #ffffff38!important;opacity:.82}

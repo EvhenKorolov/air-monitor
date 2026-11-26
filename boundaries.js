@@ -107,9 +107,9 @@ class CivilBoundaryMap{
   if(!offline){
    const badge=(point,state,label,select)=>{
     if(state?.status!=='active'||state.scope==='district')return;
-    const t=this.type(state),el=document.createElement('span');el.className='civil-status-badge';el.style.setProperty('--status-color',t.color);el.textContent=t.icon;
-    const marker=L.marker(point,{icon:L.divIcon({className:'civil-status-marker',html:el,iconSize:[32,32],iconAnchor:[16,16]}),title:label+' · оголошений статус території'}).addTo(this.statusIcons);
-    const tip=document.createElement('span');tip.textContent=label+' · '+t.label+' · статус території, не місце загрози';marker.bindTooltip(tip);marker.on('click',select);
+    const badge=civilMarkerContent(state,this.types);
+    const marker=L.marker(point,{icon:L.divIcon({className:'civil-status-marker',html:badge.el,iconSize:[badge.width,32],iconAnchor:[badge.width/2,16]}),title:label+' · оголошений статус території'}).addTo(this.statusIcons);
+    const tip=document.createElement('span');tip.textContent=label+' · '+badge.label+' · статус території, не місце загрози';marker.bindTooltip(tip);marker.on('click',select);
    };
    for(const [key,lat,lon] of this.regions)badge([lat,lon],oblastState(states[key],false),this.label(key),()=>this.onSelect(key));
    for(const [key,layers] of this.raions){const state=districts[key];if(!state||!layers.length||state.region!==BOUNDARY_PARENTS[key])continue;
