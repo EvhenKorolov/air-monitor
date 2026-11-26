@@ -1,4 +1,3 @@
-
 *{box-sizing:border-box}
 
 :root{
@@ -571,3 +570,11 @@ body{padding-bottom:calc(var(--sheet-peek) + var(--sheet-bottom) + 24px)}
 .area-reasons[hidden]{display:none}
 #area-reason-list{display:grid;gap:5px;margin:6px 0}
 .previous-area-reason{border:1px dashed #ffffff38!important;opacity:.82}
+
+/* v16: launch origin markers on map (UAVs, missiles, ballistics). */
+.launch-origin-marker{background:transparent;border:0}
+.launch-origin-pin{width:34px;height:34px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:grid;place-items:center;background:#1a1522;border:2px solid var(--launch-color,#ff4545);box-shadow:0 0 14px var(--launch-color,#ff4545);color:#fff;animation:launch-pin-pulse 2s ease-in-out infinite}
+.launch-origin-pin span{transform:rotate(45deg);font-size:16px;line-height:1}
+@keyframes launch-pin-pulse{0%,100%{box-shadow:0 0 10px var(--launch-color,#ff4545)}50%{box-shadow:0 0 20px var(--launch-color,#ff4545)}}
+@media(prefers-reduced-motion:reduce){.launch-origin-pin{animation:none!important}}
+```[cite: 27]
