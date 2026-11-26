@@ -52,7 +52,7 @@ class CivilBoundaryMap{
   this.map=map;this.regions=regions;this.types=types;this.onSelect=onSelect;
   this.regionKeys=new Set(regions.map(([r])=>r));this.districtKeys=new Set(Object.keys(BOUNDARY_PARENTS));
   this.index=boundaryAliasIndex(this.regionKeys,BOUNDARY_PARENTS,BOUNDARY_RENAMES);
-  this.oblasts=new Map();this.raions=new Map();this.markers=new Map();this.data={states:{},districts:{},offline:true,selected:null};this.loaded={oblast:false,district:false};this.loading=false;
+  this.statusIcons=L.layerGroup().addTo(map);this.oblasts=new Map();this.raions=new Map();this.markers=new Map();this.data={states:{},districts:{},offline:true,selected:null};this.loaded={oblast:false,district:false};this.loading=false;
   map.createPane('oblastAreas');map.getPane('oblastAreas').style.zIndex=410;
   map.createPane('districtAreas');map.getPane('districtAreas').style.zIndex=420;
   this.renderers={oblast:L.svg({pane:'oblastAreas',padding:.25}),district:L.svg({pane:'districtAreas',padding:.25})};
@@ -88,6 +88,7 @@ class CivilBoundaryMap{
  }
  render(data){
   this.data=data;const {states,districts,offline,selected}=data;
+  this.statusIcons.clearLayers();
   for(const [key,layers] of this.oblasts){const state=oblastState(states[key],offline);for(const l of layers)this.paint(l,state,{selected:key===selected,label:this.label(key)});}
   for(const [key,layers] of this.raions){const parent=BOUNDARY_PARENTS[key],region=states[parent]||UNKNOWN_ZONE,explicit=districts[key]?.region===parent?districts[key]:null;
    const state=selectedZoneState(states,districts,BOUNDARY_PARENTS,parent,key,offline);
@@ -102,6 +103,19 @@ class CivilBoundaryMap{
    const missingPartial=!offline&&region.scope==='district'&&!Object.entries(districts).some(([d,s])=>s.region===key&&s.status==='active'&&this.raions.has(d));
    const show=!this.oblasts.has(key)||missingPartial;if(show&&!this.map.hasLayer(m))m.addTo(this.map);else if(!show&&this.map.hasLayer(m))m.remove();
    if(show){const t=this.type(region);m.setStyle({color:t.color,fillColor:t.color,fillOpacity:.30,dashArray:'3 3'});const text=document.createElement('span');text.textContent=this.label(key)+' · '+t.label+' · межі недоступні, умовна позначка';if(!m.getTooltip())m.bindTooltip(text);else m.setTooltipContent(text);}
+  }
+  if(!offline){
+   const badge=(point,state,label,select)=>{
+    if(state?.status!=='active'||state.scope==='district')return;
+    const t=this.type(state),el=document.createElement('span');el.className='civil-status-badge';el.style.setProperty('--status-color',t.color);el.textContent=t.icon;
+    const marker=L.marker(point,{icon:L.divIcon({className:'civil-status-marker',html:el,iconSize:[32,32],iconAnchor:[16,16]}),title:label+' · оголошений статус території'}).addTo(this.statusIcons);
+    const tip=document.createElement('span');tip.textContent=label+' · '+t.label+' · статус території, не місце загрози';marker.bindTooltip(tip);marker.on('click',select);
+   };
+   for(const [key,lat,lon] of this.regions)badge([lat,lon],oblastState(states[key],false),this.label(key),()=>this.onSelect(key));
+   for(const [key,layers] of this.raions){const state=districts[key];if(!state||!layers.length||state.region!==BOUNDARY_PARENTS[key])continue;
+    // Place a label at the administrative polygon centre; never use message coordinates.
+    const bounds=layers[0].getBounds();if(bounds.isValid())badge(bounds.getCenter(),state,key,()=>this.onSelect(state.region,key));
+   }
   }
   const missing=offline?0:Object.entries(districts).filter(([key,v])=>v.status==='active'&&!this.raions.has(key)).length;
   if(!this.loading)this.status.textContent=`Межі: ${this.oblasts.size}/${this.regionKeys.size} областей · ${this.raions.size}/${this.districtKeys.size} районів`+(missing?` · ${missing} активних районів без контуру`:'')+(!this.loaded.oblast||!this.loaded.district?' · частина меж недоступна':'');

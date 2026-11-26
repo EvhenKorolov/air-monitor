@@ -560,3 +560,6 @@ body{padding-bottom:calc(var(--sheet-peek) + var(--sheet-bottom) + 24px)}
 #city-select[hidden]{display:none!important;}
 .event[role="button"]{cursor:pointer;}
 .event[role="button"]:focus-visible{outline:2px solid #64aaff;outline-offset:-2px;}
+
+/* Static administrative status labels, not threat positions. */
+.civil-status-marker{background:transparent;border:0}.civil-status-badge{width:32px;height:32px;display:grid;place-items:center;border-radius:50%;font-size:17px;background:#16202e;border:2px solid var(--status-color,#8693a5);box-shadow:0 2px 8px #0008;box-sizing:border-box}.civil-status-marker:focus-visible{outline:2px solid #fff;outline-offset:2px}

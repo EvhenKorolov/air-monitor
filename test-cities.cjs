@@ -1,0 +1,13 @@
+const assert=require('node:assert/strict');
+const {CITY_CATALOG,civilCityState}=require('./city-status.js');
+const u={status:'unknown'},e={status:'ended'},a={status:'active'},partial={...a,scope:'district'};
+assert.equal(Object.keys(CITY_CATALOG).length,36);
+assert.equal(civilCityState(u,u,e,false).status,'ended');
+assert.equal(civilCityState(a,u,e,false).status,'active');
+assert.equal(civilCityState(partial,a,e,false).status,'active');
+assert.equal(civilCityState(partial,u,e,false).status,'ended');
+assert.equal(civilCityState(u,e,a,false).status,'active');
+assert.equal(civilCityState(u,u,a,true).status,'unknown');
+assert.equal(civilCityState(u,u,null,false).status,'unknown');
+assert.equal(civilCityState(a,a,null,false).status,'active');
+console.log('9 city assertions passed');
