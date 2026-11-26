@@ -22,7 +22,7 @@ const TYPES = {
  clear:{label:'Відбій тривоги',icon:'✅',theme:'green',color:'#35d878',anim:'clear'},
  unknown:{label:'Немає актуальних даних',icon:'⚪',theme:'yellow',color:'#8693a5',anim:'default'}
 };
-let districts={},events=[],soundEnabled=false,audio=null;
+let districts={},events=[],publicAdvisories=[],soundEnabled=false,audio=null;
 const validType=t=>['general','drone','missile','ballistic','kab','mixed'].includes(t)?t:'general';
 const selected=()=>$('region').value;
 function get(r){return states[r]||{status:'unknown'}}
@@ -33,6 +33,17 @@ function format(ms){if(!Number.isFinite(ms)||ms<0)return '—';let s=Math.floor(
 function dateText(ms){return Number.isFinite(ms)?new Date(ms).toLocaleString('uk-UA',{timeZone:'Europe/Kyiv'}):'Час невідомий'}
 function timer(){const a=get(selected());$('timer-value').textContent=stale()?'—':a.status==='active'?format(Date.now()-a.started_at_ms):a.status==='ended'?format(a.ended_at_ms-a.started_at_ms):'—'}
 function row(text,subtitle,color){const e=document.createElement('div');e.className='event';const main=document.createElement('div');main.textContent=text;main.style.color=color;const small=document.createElement('small');small.textContent=subtitle;e.append(main,small);return e}
+function renderPublicAdvisories(offline){
+ const panel=$('public-advisories'),list=$('advisory-icons');
+ list.replaceChildren();
+ const active=offline?[]:publicAdvisories;
+ panel.hidden=!active.length;
+ for(const type of active){
+  const v=TYPES[type],chip=document.createElement('span');
+  chip.className='advisory-chip';chip.style.setProperty('--advisory-color',v.color);
+  chip.textContent=v.icon+' '+v.label;list.append(chip);
+ }
+}
 function render(){
  const offline=stale(),a=offline?{status:'unknown'}:get(selected()),v=view(a),s=a.status;
  $('widget').className='theme-'+v.theme;
@@ -47,6 +58,7 @@ function render(){
  $('updated').textContent=updated?'Зв’язок перевірено: '+dateText(updated):'Немає даних';
  $('active').textContent=offline?'—':Object.values(states).filter(a=>a.status==='active').length;
  $('known').textContent=offline?'—':Object.values(states).filter(a=>a.status!=='unknown').length;
+ renderPublicAdvisories(offline);
  if(boundaryMap)boundaryMap.render({states,districts,offline,selected:selected()});
  const d=$('districts'),districtScroll=d.scrollTop;d.replaceChildren();
  if(!offline)Object.entries(districts).filter(([,x])=>x.region===selected()).sort((a,b)=>a[0].localeCompare(b[0],'uk')).forEach(([label,x])=>{const v=view(x);d.append(row(v.icon+' '+label,v.label,v.color))});
@@ -79,6 +91,7 @@ async function refresh(){
   const previous=get(selected()),wasOnline=!stale(),next={};for(const [r] of regions)next[r]=clean(data.regions[r]);
   const nextDistricts={};if(data.districts&&typeof data.districts==='object'&&!Array.isArray(data.districts))for(const [d,x] of Object.entries(data.districts))if(x&&regionNames.has(x.region))nextDistricts[d]={...clean(x),region:x.region};
   const nextEvents=Array.isArray(data.events)?data.events.filter(x=>x&&regionNames.has(x.region)&&['active','ended'].includes(x.status)&&Number.isFinite(x.at_ms)).map(x=>({...clean(x),region:x.region,district:typeof x.district==='string'?x.district:null,at_ms:x.at_ms})).sort((a,b)=>b.at_ms-a.at_ms):[];
+  publicAdvisories=Array.isArray(data.public_advisories)?[...new Set(data.public_advisories.map(x=>x?.threat_type).filter(x=>['drone','missile','ballistic','kab'].includes(x)))]:[];
   states=next;districts=nextDistricts;events=nextEvents;updated=data.updated_at_ms;failed=false;lastError='';
   if(wasOnline&&previous.status!=='active'&&get(selected()).status==='active')beep();
  }catch(e){failed=true;lastError=e.name==='AbortError'?'Час очікування API вичерпано':e instanceof TypeError?'Мережева помилка або CORS':String(e.message||e);console.error('[AIR MONITOR]',e)}finally{busy=false;$('refresh').disabled=false;$('refresh').setAttribute('aria-busy','false');render()}

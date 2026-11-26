@@ -536,3 +536,11 @@ body{padding-bottom:calc(var(--sheet-peek) + var(--sheet-bottom) + 24px)}
 }
 @media(max-width:360px){#sheet-hint{font-size:9px}.sheet-card .event{font-size:11px}.sheet-card .title{font-size:11px}.sheet-handle-row{gap:4px}}
 @media(max-height:420px){:root{--sheet-peek:54px;--sheet-max: min(86dvh, 620px)}.sheet-handle{gap:4px}.sheet-card .title{font-size:12px}.sheet-card.threat{padding:7px}}
+
+/* Non-geographic civil advisory bar, separate from Leaflet geometry. */
+.public-advisories{padding:9px 10px;background:linear-gradient(135deg,#202a39,#111a26);border-bottom:1px solid #ffffff20;display:grid;gap:6px;flex:none}
+.public-advisories[hidden]{display:none!important}
+.advisory-heading{font-size:11px;font-weight:800;color:#e8eaf0}
+.advisory-icons{display:flex;gap:5px;flex-wrap:wrap}
+.advisory-chip{padding:5px 8px;border-radius:10px;font-size:11px;font-weight:700;color:var(--advisory-color);background:#ffffff0b;border:1px solid var(--advisory-color)}
+.advisory-note{font-size:10px;line-height:1.4;color:#b9c5d5}
