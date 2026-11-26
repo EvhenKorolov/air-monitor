@@ -1,14 +1,13 @@
 'use strict';
-const CIVIL_REASON_TYPES=['drone','jet_uav','molniya','banderol','missile','ballistic','kab'];
+const CIVIL_REASON_TYPES=['drone','missile','ballistic','kab'];
 function civilReasonList(values,fallback){
  const arr=Array.isArray(values)?values:[fallback];
  return CIVIL_REASON_TYPES.filter(x=>arr.includes(x));
 }
 function civilReasonBadges(state,now=Date.now()){
- if(!state||state.status!=='active')return [];
+ if(!state||state.status!=='active'||state.scope==='district')return [];
  const current=civilReasonList(state.threat_types,state.threat_type);
  if(current.length)return current.map(type=>({type,previous:false}));
- if(state.scope==='district')return [];
  const at=state.last_reported_threat_at_ms;
  const previous=Number.isFinite(at)&&now>=at&&now-at<=900000?civilReasonList(state.last_reported_threat_types,state.last_reported_threat_type):[];
  return [{type:'general',previous:false},...previous.map(type=>({type,previous:true}))];
@@ -17,8 +16,8 @@ function civilMarkerContent(state,types,now=Date.now()){
  const entries=civilReasonBadges(state,now);
  if(!entries.length)entries.push({type:state?.status==='ended'?'clear':state?.status==='active'?'general':'unknown',previous:false});
  const el=document.createElement('span');el.className='civil-badge-group';
- for(const item of entries){const t=types[item.type]||types.general,b=document.createElement('span');b.className='civil-status-badge'+(item.previous?' previous-reason':'');b.style.setProperty('--status-color',t.color);b.textContent=t.icon;b.title=(item.previous?'Раніше зазначено: ':'')+t.label;el.append(b)}
- return {el,width:32*entries.length+3*(entries.length-1),label:entries.map(x=>(x.previous?'Раніше зазначено (не підтверджено повторно): ':'')+(types[x.type]||types.general).label).join(' · ')};
+ for(const item of entries){const t=types[item.type],b=document.createElement('span');b.className='civil-status-badge'+(item.previous?' previous-reason':'');b.style.setProperty('--status-color',t.color);b.textContent=t.icon;b.title=(item.previous?'Раніше зазначено: ':'')+t.label;el.append(b)}
+ return {el,width:32*entries.length+3*(entries.length-1),label:entries.map(x=>(x.previous?'Раніше зазначено (не підтверджено повторно): ':'')+types[x.type].label).join(' · ')};
 }
 function cleanAreaAdvisories(rows,states,districts,cities,now=Date.now()){
  if(!Array.isArray(rows))return [];

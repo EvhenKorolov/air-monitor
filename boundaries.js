@@ -1,4 +1,5 @@
 'use strict';
+/* Administrative boundaries only. No target locations or paths. */
 const BOUNDARY_SOURCE = 'https://raw.githubusercontent.com/Astaryon/UA_geojson/main/';
 const UNKNOWN_ZONE = Object.freeze({status:'unknown'});
 function boundaryNorm(value){return String(value).normalize('NFKC').toLowerCase().replace(/[’ʼ‘`]/g,"'").replace(/[‐‑–—]/g,'-').replace(/\s+/g,' ').trim();}
@@ -12,6 +13,7 @@ function boundaryAliasIndex(regionKeys,parents,renames){
  return index;
 }
 function matchBoundary(feature,index,allowed){
+ // Source property names vary. Prefer exact name properties, never substring matching.
  const properties=feature?.properties||{};
  const fields=Object.entries(properties).filter(([,v])=>typeof v==='string');
  const tiers=[fields.filter(([k])=>/^(name(:uk|_uk)?|назва|name_ua|adm[12]_ua|adm[12]_uk|nameuk|nameua|rayon|raion|region|oblast)$/i.test(k)),fields];
@@ -23,6 +25,7 @@ function zoneState(regionState,districtState,offline){
  if(!regionState||regionState.status==='unknown')return districtState||UNKNOWN_ZONE;
  if(regionState.scope==='district')return districtState||UNKNOWN_ZONE;
  if(regionState.status==='active'){
+  // A district all-clear does not cancel an explicit oblast-wide alert.
   return districtState?.status==='active'?districtState:regionState;
  }
  return districtState||regionState;
@@ -89,10 +92,13 @@ class CivilBoundaryMap{
   for(const [key,layers] of this.oblasts){const state=oblastState(states[key],offline);for(const l of layers)this.paint(l,state,{selected:key===selected,label:this.label(key)});}
   for(const [key,layers] of this.raions){const parent=BOUNDARY_PARENTS[key],region=states[parent]||UNKNOWN_ZONE,explicit=districts[key]?.region===parent?districts[key]:null;
    const state=selectedZoneState(states,districts,BOUNDARY_PARENTS,parent,key,offline);
+   // Only actual district declarations add a fill above the oblast layer. Inherited statuses use the oblast fill.
    const own=!offline&&explicit&&!(region.status==='active'&&region.scope!=='district'&&explicit.status!=='active');
+   // If the parent geometry is absent, the known district polygon can still display its inherited state.
    const outline=!own&&this.oblasts.has(parent);
    for(const l of layers)this.paint(l,state,{district:true,outline,label:key,selected:key===data.selectedDistrict});
   }
+  // Missing boundaries: preserve a clearly labelled point fallback, never colour the entire oblast for a partial alert.
   for(const [key,m] of this.markers){const region=offline?UNKNOWN_ZONE:states[key]||UNKNOWN_ZONE;
    const missingPartial=!offline&&region.scope==='district'&&!Object.entries(districts).some(([d,s])=>s.region===key&&s.status==='active'&&this.raions.has(d));
    const show=!this.oblasts.has(key)||missingPartial;if(show&&!this.map.hasLayer(m))m.addTo(this.map);else if(!show&&this.map.hasLayer(m))m.remove();
@@ -107,6 +113,7 @@ class CivilBoundaryMap{
    };
    for(const [key,lat,lon] of this.regions)badge([lat,lon],oblastState(states[key],false),this.label(key),()=>this.onSelect(key));
    for(const [key,layers] of this.raions){const state=districts[key];if(!state||!layers.length||state.region!==BOUNDARY_PARENTS[key])continue;
+    // Place a label at the administrative polygon centre; never use message coordinates.
     const bounds=layers[0].getBounds();if(bounds.isValid())badge(bounds.getCenter(),state,key,()=>this.onSelect(state.region,key));
    }
   }

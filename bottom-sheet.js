@@ -66,6 +66,7 @@
  });
  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&open){setOpen(false);handle.focus({preventScroll:true});}});
  document.addEventListener('pointerdown',e=>{if(open&&!sheet.contains(e.target)&&!drag)setOpen(false);},true);
+ // Reopening Telegram or rotating never forces an expanded panel.
  window.addEventListener('pagehide',()=>{if(drag){restoreTelegram(drag);drag=null;sheet.classList.remove('is-dragging');}setOpen(false);});
  setOpen(false);
 })();

@@ -1,3 +1,4 @@
+
 *{box-sizing:border-box}
 
 :root{
@@ -77,6 +78,8 @@ body{
   box-shadow .6s ease;
 }
 
+/* Скляний відблиск */
+
 #widget:before{
  content:"";
  position:absolute;
@@ -90,6 +93,8 @@ body{
    transparent 70%,
    rgba(255,255,255,.035));
 }
+
+/* Кольорове атмосферне світіння */
 
 #widget:after{
  content:"";
@@ -158,6 +163,8 @@ body{
 
  box-shadow:inset 0 1px rgba(255,255,255,.08);
 }
+
+/* Блок загрози */
 
 .threat{
  position:relative;
@@ -249,14 +256,41 @@ body{
  color:rgba(255,255,255,.48);
 }
 
-.anim-drone{animation:drone 2s ease-in-out infinite}
-.anim-missile{animation:missile 1.5s ease-in-out infinite}
-.anim-ballistic{animation:ballistic 1.15s ease-in-out infinite}
-.anim-explosion{animation:explosion 1.5s ease-in-out infinite}
-.anim-siren{animation:siren .8s ease-in-out infinite}
-.anim-alert{animation:alert 1.2s ease-in-out infinite}
-.anim-clear{animation:clear 2s ease-in-out infinite}
-.anim-default{animation:float 2.5s ease-in-out infinite}
+/* Типи анімацій */
+
+.anim-drone{
+ animation:drone 2s ease-in-out infinite;
+}
+
+.anim-missile{
+ animation:missile 1.5s ease-in-out infinite;
+}
+
+.anim-ballistic{
+ animation:ballistic 1.15s ease-in-out infinite;
+}
+
+.anim-explosion{
+ animation:explosion 1.5s ease-in-out infinite;
+}
+
+.anim-siren{
+ animation:siren .8s ease-in-out infinite;
+}
+
+.anim-alert{
+ animation:alert 1.2s ease-in-out infinite;
+}
+
+.anim-clear{
+ animation:clear 2s ease-in-out infinite;
+}
+
+.anim-default{
+ animation:float 2.5s ease-in-out infinite;
+}
+
+/* Таймер */
 
 .timer{
  display:flex;
@@ -277,17 +311,23 @@ body{
  box-shadow:inset 0 1px rgba(255,255,255,.05);
 }
 
-.timer-label{font-size:11px;color:rgba(255,255,255,.65)}
+.timer-label{
+ font-size:11px;
+ color:rgba(255,255,255,.65);
+}
+
 .live{
  display:inline-flex;
  align-items:center;
  gap:6px;
+
  color:var(--a);
  font-size:9px;
  font-weight:850;
  letter-spacing:1px;
  margin-top:5px;
 }
+
 .live:before{
  content:"";
  width:6px;
@@ -297,6 +337,7 @@ body{
  box-shadow:0 0 8px currentColor;
  animation:livePulse 1.3s infinite;
 }
+
 .value{
  color:var(--a);
  font-size:18px;
@@ -304,34 +345,121 @@ body{
  font-variant-numeric:tabular-nums;
  letter-spacing:1px;
  white-space:nowrap;
+
  text-shadow:0 0 15px var(--g);
  transition:color .5s;
 }
 
-.footer{border-top:1px solid rgba(255,255,255,.11);padding-top:12px}
-.location{font-size:12px;font-weight:750;color:rgba(255,255,255,.94)}
-.updated{font-size:10px;color:rgba(255,255,255,.43);margin-top:5px}
+/* Нижня частина */
 
-@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.28);opacity:.7}}
-@keyframes livePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
-@keyframes ambient{from{transform:translate(0,0) scale(.85);opacity:.10}to{transform:translate(-35px,35px) scale(1.25);opacity:.23}}
-@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
-@keyframes drone{0%,100%{transform:translate(0,0) rotate(-5deg)}25%{transform:translate(2px,-3px) rotate(4deg)}50%{transform:translate(0,-5px) rotate(-2deg)}75%{transform:translate(-2px,-2px) rotate(5deg)}}
-@keyframes missile{0%{transform:translate(-3px,3px) rotate(-35deg)}50%{transform:translate(3px,-3px) rotate(-35deg)}100%{transform:translate(-3px,3px) rotate(-35deg)}}
-@keyframes ballistic{0%{transform:translate(4px,5px) rotate(-45deg) scale(.85)}50%{transform:translate(-3px,-4px) rotate(-45deg) scale(1.15)}100%{transform:translate(4px,5px) rotate(-45deg) scale(.85)}}
-@keyframes explosion{0%,100%{transform:scale(.8);filter:brightness(1)}40%{transform:scale(1.35);filter:brightness(1.7)}60%{transform:scale(.95);filter:brightness(1.2)}}
-@keyframes siren{0%,100%{transform:rotate(-15deg);filter:brightness(1)}50%{transform:rotate(15deg);filter:brightness(1.7)}}
-@keyframes alert{0%,100%{transform:scale(1);filter:drop-shadow(0 0 0 transparent)}50%{transform:scale(1.15);filter:drop-shadow(0 0 8px var(--a))}}
-@keyframes clear{0%,100%{transform:scale(.9) rotate(-8deg)}50%{transform:scale(1.15) rotate(8deg)}}
-@keyframes glassShine{0%,65%{transform:translateX(-120%)}85%,100%{transform:translateX(120%)}}
-@keyframes fadeUp{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
-@keyframes enter{from{opacity:0;transform:scale(.4) rotate(-30deg)}to{opacity:1;transform:scale(1) rotate(0)}}
-.enter{animation:enter .5s cubic-bezier(.2,.8,.2,1)}
+.footer{
+ border-top:1px solid rgba(255,255,255,.11);
+ padding-top:12px;
+}
 
-@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
+.location{
+ font-size:12px;
+ font-weight:750;
+ color:rgba(255,255,255,.94);
+}
+
+.updated{
+ font-size:10px;
+ color:rgba(255,255,255,.43);
+ margin-top:5px;
+}
+
+/* Анімації */
+
+@keyframes pulse{
+ 0%,100%{transform:scale(1);opacity:1}
+ 50%{transform:scale(1.28);opacity:.7}
+}
+
+@keyframes livePulse{
+ 0%,100%{opacity:1;transform:scale(1)}
+ 50%{opacity:.35;transform:scale(.7)}
+}
+
+@keyframes ambient{
+ from{transform:translate(0,0) scale(.85);opacity:.10}
+ to{transform:translate(-35px,35px) scale(1.25);opacity:.23}
+}
+
+@keyframes float{
+ 0%,100%{transform:translateY(0)}
+ 50%{transform:translateY(-4px)}
+}
+
+@keyframes drone{
+ 0%,100%{transform:translate(0,0) rotate(-5deg)}
+ 25%{transform:translate(2px,-3px) rotate(4deg)}
+ 50%{transform:translate(0,-5px) rotate(-2deg)}
+ 75%{transform:translate(-2px,-2px) rotate(5deg)}
+}
+
+@keyframes missile{
+ 0%{transform:translate(-3px,3px) rotate(-35deg)}
+ 50%{transform:translate(3px,-3px) rotate(-35deg)}
+ 100%{transform:translate(-3px,3px) rotate(-35deg)}
+}
+
+@keyframes ballistic{
+ 0%{transform:translate(4px,5px) rotate(-45deg) scale(.85)}
+ 50%{transform:translate(-3px,-4px) rotate(-45deg) scale(1.15)}
+ 100%{transform:translate(4px,5px) rotate(-45deg) scale(.85)}
+}
+
+@keyframes explosion{
+ 0%,100%{transform:scale(.8);filter:brightness(1)}
+ 40%{transform:scale(1.35);filter:brightness(1.7)}
+ 60%{transform:scale(.95);filter:brightness(1.2)}
+}
+
+@keyframes siren{
+ 0%,100%{transform:rotate(-15deg);filter:brightness(1)}
+ 50%{transform:rotate(15deg);filter:brightness(1.7)}
+}
+
+@keyframes alert{
+ 0%,100%{transform:scale(1);filter:drop-shadow(0 0 0 transparent)}
+ 50%{transform:scale(1.15);filter:drop-shadow(0 0 8px var(--a))}
+}
+
+@keyframes clear{
+ 0%,100%{transform:scale(.9) rotate(-8deg)}
+ 50%{transform:scale(1.15) rotate(8deg)}
+}
+
+@keyframes glassShine{
+ 0%,65%{transform:translateX(-120%)}
+ 85%,100%{transform:translateX(120%)}
+}
+
+@keyframes fadeUp{
+ from{opacity:0;transform:translateY(9px)}
+ to{opacity:1;transform:translateY(0)}
+}
+
+@keyframes enter{
+ from{opacity:0;transform:scale(.4) rotate(-30deg)}
+ to{opacity:1;transform:scale(1) rotate(0)}
+}
+
+.enter{
+ animation:enter .5s cubic-bezier(.2,.8,.2,1);
+}
+
+@media(prefers-reduced-motion:reduce){
+ *,*:before,*:after{
+  animation:none!important;
+  transition:none!important;  
+ }
+}
 
 html,body{min-height:100%;background:#0b1019}body{padding:calc(12px + var(--safe-top,0px)) 12px calc(14px + env(safe-area-inset-bottom));}#widget{max-width:1100px;min-height:calc(100dvh - 28px);padding:16px;display:flex;flex-direction:column;gap:12px}.header,.threat,.timer{margin-bottom:0}.brand{font-size:24px;font-weight:850;letter-spacing:-1px}.sub{font-size:12px;color:#9caabd}.mapwrap{position:relative;border:1px solid #ffffff24;border-radius:20px;overflow:hidden;min-height:340px;flex:1;background:#142030}#map{height:clamp(340px,48vh,650px);width:100%;background:#142030}.leaflet-tile-pane{filter:grayscale(.8) invert(.9) hue-rotate(180deg) brightness(.8)}.controls{display:flex;gap:8px;flex-wrap:wrap}button,select{font:inherit;color:#fff;background:#ffffff10;border:1px solid #ffffff25;border-radius:12px;padding:10px;cursor:pointer}select option{background:#202733}.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.stat{padding:12px;border:1px solid #ffffff15;border-radius:15px;background:#ffffff08}.stat strong{display:block;font-size:23px;color:var(--a);margin-top:5px}.notice{font-size:11px;color:#aab4c4;line-height:1.5}.feed{display:grid;gap:8px}.event{padding:10px;border-bottom:1px solid #ffffff12;font-size:13px}.event small{display:block;color:#9caabd;margin-top:4px}.leaflet-container .leaflet-tooltip{background:#151e2b;color:#fff;border:1px solid #ffffff30;box-shadow:none}.leaflet-container .leaflet-tooltip:before{display:none}.badge{font-size:11px}.status{flex-wrap:wrap}@media(min-width:800px){.dashboard{display:grid;grid-template-columns:300px 1fr;gap:14px}.sidebar{display:flex;flex-direction:column;gap:12px}.mapwrap{min-height:480px}#map{height:100%;min-height:480px}}@media(max-width:799px){.sidebar{display:grid;gap:10px}.dashboard{display:grid;gap:12px}}
 
+/* Top toolbar: fullscreen and refresh always remain side by side. */
 .app-header{gap:10px;align-items:center;flex-wrap:nowrap}
 .app-header>div:first-child{min-width:0;flex:1}
 .header-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex:0 0 auto;flex-wrap:nowrap;white-space:nowrap}
@@ -349,8 +477,10 @@ html,body{min-height:100%;background:#0b1019}body{padding:calc(12px + var(--safe
 @media(max-width:340px){body{padding-left:6px;padding-right:6px}#widget{padding:10px}.app-header{gap:6px}.header-actions .icon-button{width:34px;flex-basis:34px}}
 @media(prefers-reduced-motion:reduce){.icon-button[aria-busy="true"] svg{animation:none}}
 
+/* Civil alert type controls and region information */
 .feed-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px}.filter-label{display:flex;align-items:center;gap:8px;font-size:11px;color:#aab4c4;flex-wrap:wrap}.filter-label select{font-size:12px;max-width:100%}#sound{width:100%;text-align:left}#sound[aria-pressed="true"]{border-color:#35d878;color:#35d878}.alert-popup{min-width:125px;line-height:1.6}.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#182230;color:#fff}.leaflet-container .leaflet-popup-close-button{color:#c4d1e0}.leaflet-popup-content{margin:12px 20px 12px 12px}.feed{max-height:340px;overflow:auto}.event{overflow-wrap:anywhere}
 
+/* Polygon layers: slow, bounded pulse with stable visibility. */
 .map-info{position:relative;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 10px;background:#101925;border-top:1px solid #ffffff20;font-size:10px;color:#b9c5d5}
 .map-info span{flex:1 1 180px}.map-info button{font-size:10px;padding:6px 8px;border-radius:8px;white-space:nowrap}.map-info button[hidden]{display:none}
 .mapwrap{display:flex;flex-direction:column}#map{flex:1 1 auto;min-height:340px}
@@ -362,6 +492,7 @@ html,body{min-height:100%;background:#0b1019}body{padding:calc(12px + var(--safe
 @media(prefers-reduced-motion:reduce){.civil-zone-active{animation:none!important;filter:none!important}}
 @media(min-width:800px){#map{height:auto;min-height:480px}}
 
+/* Private visitor location: separate from the public civil alert layer. */
 .location-panel{display:grid;gap:6px;padding:9px 10px;background:#101925;border-top:1px solid #ffffff20;color:#b9c5d5;font-size:11px;line-height:1.45}
 .location-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .location-actions button{display:flex;align-items:center;justify-content:center;gap:7px;padding:8px 10px;font-size:12px;border-radius:10px}
@@ -376,6 +507,7 @@ html,body{min-height:100%;background:#0b1019}body{padding:calc(12px + var(--safe
 @keyframes location-wait{50%{opacity:.4}}
 @media(prefers-reduced-motion:reduce){.own-location-dot:before,#locate[aria-busy="true"] svg{animation:none!important}}
 
+/* v8 — compact, draggable bottom sheet, outside the map stacking context. */
 :root{--sheet-peek:68px;--sheet-bottom:env(safe-area-inset-bottom,0px);--sheet-max: min(68dvh, 620px)}
 body{padding-bottom:calc(var(--sheet-peek) + var(--sheet-bottom) + 24px)}
 #widget{min-height:calc(100dvh - var(--sheet-peek) - var(--sheet-bottom) - var(--safe-top,0px) - 38px)}
@@ -405,6 +537,7 @@ body{padding-bottom:calc(var(--sheet-peek) + var(--sheet-bottom) + 24px)}
 @media(max-width:360px){#sheet-hint{font-size:9px}.sheet-card .event{font-size:11px}.sheet-card .title{font-size:11px}.sheet-handle-row{gap:4px}}
 @media(max-height:420px){:root{--sheet-peek:54px;--sheet-max: min(86dvh, 620px)}.sheet-handle{gap:4px}.sheet-card .title{font-size:12px}.sheet-card.threat{padding:7px}}
 
+/* Non-geographic civil advisory bar, separate from Leaflet geometry. */
 .public-advisories{padding:9px 10px;background:linear-gradient(135deg,#202a39,#111a26);border-bottom:1px solid #ffffff20;display:grid;gap:6px;flex:none}
 .public-advisories[hidden]{display:none!important}
 .advisory-heading{font-size:11px;font-weight:800;color:#e8eaf0}
@@ -412,6 +545,7 @@ body{padding-bottom:calc(var(--sheet-peek) + var(--sheet-bottom) + 24px)}
 .advisory-chip{padding:5px 8px;border-radius:10px;font-size:11px;font-weight:700;color:var(--advisory-color);background:#ffffff0b;border:1px solid var(--advisory-color)}
 .advisory-note{font-size:10px;line-height:1.4;color:#b9c5d5}
 
+/* v11: same neutral status and district selection as the map. */
 .theme-gray{--a:#a1aebe;--s:rgba(134,147,165,.10);--g:rgba(134,147,165,.18);--b:rgba(134,147,165,.30)}
 .theme-gray .dot,.theme-gray .live:before{animation:none}
 .region-controls{display:grid;grid-template-columns:minmax(0,1fr);gap:5px}
@@ -421,12 +555,15 @@ body{padding-bottom:calc(var(--sheet-peek) + var(--sheet-bottom) + 24px)}
 #mode[data-online="true"]{color:#89c4ff;background:#4199ff13;border-color:#4199ff55}
 #mode[data-online="false"]{color:#a1aebe;background:#8693a515;border-color:#8693a544}
 
+/* Independent municipal selector. */
 #city-select{width:100%;min-width:0;}
 #city-select[hidden]{display:none!important;}
 .event[role="button"]{cursor:pointer;}
 .event[role="button"]:focus-visible{outline:2px solid #64aaff;outline-offset:-2px;}
 
+/* Static administrative status labels, not threat positions. */
 .civil-status-marker{background:transparent;border:0}.civil-status-badge{width:32px;height:32px;display:grid;place-items:center;border-radius:50%;font-size:17px;background:#16202e;border:2px solid var(--status-color,#8693a5);box-shadow:0 2px 8px #0008;box-sizing:border-box}.civil-status-marker:focus-visible{outline:2px solid #fff;outline-offset:2px}
+/* v14: grouped civil reason badges, historical reasons visually distinct. */
 .civil-badge-group{display:flex;gap:3px;width:max-content;align-items:center}
 .civil-badge-group .civil-status-badge{flex:none}
 .civil-status-badge.previous-reason{border-style:dashed;opacity:.72;background:#242b38}
@@ -434,14 +571,3 @@ body{padding-bottom:calc(var(--sheet-peek) + var(--sheet-bottom) + 24px)}
 .area-reasons[hidden]{display:none}
 #area-reason-list{display:grid;gap:5px;margin:6px 0}
 .previous-area-reason{border:1px dashed #ffffff38!important;opacity:.82}
-
-.launch-origin-marker{background:transparent;border:0}
-.launch-origin-pin{width:34px;height:34px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:grid;place-items:center;background:#1a1522;border:2px solid var(--launch-color,#ff4545);box-shadow:0 0 14px var(--launch-color,#ff4545);color:#fff;animation:launch-pin-pulse 2s ease-in-out infinite}
-.launch-origin-pin span{transform:rotate(45deg);font-size:16px;line-height:1}
-@keyframes launch-pin-pulse{0%,100%{box-shadow:0 0 10px var(--launch-color,#ff4545)}50%{box-shadow:0 0 20px var(--launch-color,#ff4545)}}
-@media(prefers-reduced-motion:reduce){.launch-origin-pin{animation:none!important}}
-
-/* v17: Trajectories & impact zones */
-.trajectory-arrow-marker{background:transparent;border:0;pointer-events:none}
-.trajectory-arrow{width:24px;height:24px;display:grid;place-items:center;font-size:15px;line-height:1;color:var(--traj-color,#ff4545);text-shadow:0 0 8px rgba(0,0,0,.85)}
-@media(prefers-reduced-motion:reduce){.trajectory-arrow{animation:none!important}}
