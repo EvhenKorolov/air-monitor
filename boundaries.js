@@ -1,5 +1,4 @@
 'use strict';
-/* Administrative boundaries only. No target locations or paths. */
 const BOUNDARY_SOURCE = 'https://raw.githubusercontent.com/Astaryon/UA_geojson/main/';
 const UNKNOWN_ZONE = Object.freeze({status:'unknown'});
 function boundaryNorm(value){return String(value).normalize('NFKC').toLowerCase().replace(/[’ʼ‘`]/g,"'").replace(/[‐‑–—]/g,'-').replace(/\s+/g,' ').trim();}

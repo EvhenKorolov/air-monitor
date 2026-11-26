@@ -1,5 +1,4 @@
 'use strict';
-/* The visitor's own location, used only in the open page. */
 function ringContains(ring,x,y){
  let inside=false;
  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
@@ -19,7 +18,6 @@ function localArea(boundaries,lat,lon,parents){
  if(!boundaries)return null;
  const hits=collection=>[...collection].filter(([,layers])=>layers.some(l=>geometryContains(l.feature?.geometry,lat,lon))).map(([k])=>k);
  let oblasts=hits(boundaries.oblasts),districts=hits(boundaries.raions);
- // Separately administered cities take precedence over overlapping oblast geometries.
  const cities=oblasts.filter(k=>k.startsWith('м.'));
  if(cities.length===1)return {region:cities[0],district:null};
  if(oblasts.length>1)return null;
@@ -47,7 +45,6 @@ class OwnLocation{
   if(this.enabled)return;
   this.enabled=true;this.token++;this.focusPending=true;this.fallbackFocused=false;this.settingsNeeded=false;this.stopButton.hidden=false;this.busy(true);this.setStatus('Запитуємо доступ до геопозиції…');
   const manager=this.tg?.LocationManager;
-  // Telegram's native prompt is preferred; an explicit denial is never bypassed.
   if(this.tg?.initData&&this.tg?.isVersionAtLeast?.('8.0')&&manager&&typeof manager.init==='function'){
    this.native=manager;const token=this.token;
    this.pending=setTimeout(()=>{if(this.enabled&&token===this.token){this.pending=null;this.busy(false);this.setStatus('Telegram не відповів. Спробуйте ще раз.');}},15000);
@@ -64,7 +61,6 @@ class OwnLocation{
   if(!manager?.isLocationAvailable){this.error('Геолокація недоступна.');return;}
   if(manager.isAccessRequested&&!manager.isAccessGranted){this.denied(true);return;}
   this.busy(!this.fix);
-  // Ignore late callbacks after a timeout, stop, or new request.
   const request={};this.nativeRequestId=request;
   this.pending=setTimeout(()=>{if(this.nativeRequestId!==request)return;this.nativeRequestId=null;this.pending=null;this.error('Не вдалося отримати геопозицію. Спробуйте ще раз.');},18000);
   try{manager.getLocation(data=>{

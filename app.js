@@ -13,19 +13,19 @@ let states={}, updated=0, failed=false, busy=false, lastError='';
 const map=window.L?L.map('map',{minZoom:4,maxZoom:12,preferCanvas:false}).fitBounds([[44.3,22],[52.5,40.3]]):null;
 if(map){L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:12,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);if(window.ResizeObserver)new ResizeObserver(()=>map.invalidateSize()).observe($('map'));else window.addEventListener('resize',()=>map.invalidateSize());}else $('map').textContent='Карта недоступна';
 const TYPES = {
- mixed:{label:'Кілька типів попереджень',icon:'⚠️',theme:'red',color:'#ff4545',anim:'alert'},
- general:{label:'Повітряна тривога',icon:'🚨',theme:'red',color:'#ff4545',anim:'siren'},
- drone:{label:'Загроза ударних БпЛА',icon:'🛵',theme:'orange',color:'#ff9638',anim:'drone'},
- jet_uav:{label:'Реактивний БпЛА / ціль',icon:'✈️',theme:'red',color:'#ff5a36',anim:'missile'},
- molniya:{label:'БпЛА «Молнія»',icon:'⚡',theme:'orange',color:'#ffb020',anim:'drone'},
- banderol:{label:'Загроза «Бандероль»',icon:'📦',theme:'red',color:'#ff4545',anim:'missile'},
- missile:{label:'Ракетна небезпека',icon:'🚀',theme:'red',color:'#ff4545',anim:'missile'},
- ballistic:{label:'Балістична загроза',icon:'⚠️',theme:'red',color:'#ff4545',anim:'alert'},
- kab:{label:'Загроза застосування КАБ',icon:'💣',theme:'orange',color:'#ff9638',anim:'explosion'},
- clear:{label:'Відбій тривоги',icon:'✅',theme:'green',color:'#35d878',anim:'clear'},
- unknown:{label:'Немає актуальних даних',icon:'⚪',theme:'gray',color:'#8693a5',anim:'default'}
+ mixed:{label:'Кілька типів попереджень',icon:'⚠️',theme:'red',color:'#ff4545',anim:'alert',defaultRadiusM:5000},
+ general:{label:'Повітряна тривога',icon:'🚨',theme:'red',color:'#ff4545',anim:'siren',defaultRadiusM:5000},
+ drone:{label:'Загроза ударних БпЛА',icon:'🛵',theme:'orange',color:'#ff9638',anim:'drone',defaultRadiusM:2000},
+ jet_uav:{label:'Реактивний БпЛА / ціль',icon:'✈️',theme:'red',color:'#ff5a36',anim:'missile',defaultRadiusM:3000},
+ molniya:{label:'БпЛА «Молнія»',icon:'⚡',theme:'orange',color:'#ffb020',anim:'drone',defaultRadiusM:1200},
+ banderol:{label:'Загроза «Бандероль»',icon:'📦',theme:'red',color:'#ff4545',anim:'missile',defaultRadiusM:1800},
+ missile:{label:'Ракетна небезпека',icon:'🚀',theme:'red',color:'#ff4545',anim:'missile',defaultRadiusM:8000},
+ ballistic:{label:'Балістична загроза',icon:'⚠️',theme:'red',color:'#ff4545',anim:'alert',defaultRadiusM:12000},
+ kab:{label:'Загроза застосування КАБ',icon:'💣',theme:'orange',color:'#ff9638',anim:'explosion',defaultRadiusM:4500},
+ clear:{label:'Відбій тривоги',icon:'✅',theme:'green',color:'#35d878',anim:'clear',defaultRadiusM:0},
+ unknown:{label:'Немає актуальних даних',icon:'⚪',theme:'gray',color:'#8693a5',anim:'default',defaultRadiusM:0}
 };
-let districts={},cities={},events=[],publicAdvisories=[],areaAdvisories=[],launchPoints=[],soundEnabled=false,audio=null;
+let districts={},cities={},events=[],publicAdvisories=[],areaAdvisories=[],launchPoints=[],trajectories=[],impactZones=[],soundEnabled=false,audio=null;
 const ALL_VALID_TYPES=['general','drone','jet_uav','molniya','banderol','missile','ballistic','kab','mixed'];
 const validType=t=>ALL_VALID_TYPES.includes(t)?t:'general';
 const selected=()=>$('region').value;
@@ -55,19 +55,215 @@ function getCityState(city,offline=stale()){
 function selectedState(offline=stale()){const c=selectedCity();return c?getCityState(c,offline):selectedZoneState(states,districts,BOUNDARY_PARENTS,selected(),selectedDistrict(),offline)}
 const cityLayer=map?L.layerGroup().addTo(map):null;
 
+if(map){
+ map.createPane('threatTrajectories');
+ map.getPane('threatTrajectories').style.zIndex=435;
+ map.getPane('threatTrajectories').style.pointerEvents='none';
+ map.createPane('threatImpact');
+ map.getPane('threatImpact').style.zIndex=438;
+ map.getPane('threatImpact').style.pointerEvents='none';
+ map.createPane('threatLaunch');
+ map.getPane('threatLaunch').style.zIndex=460;
+}
+
+const trajectoryLayer=map?L.layerGroup().addTo(map):null;
+const impactLayer=map?L.layerGroup().addTo(map):null;
 const launchLayer=map?L.layerGroup().addTo(map):null;
+
+function parseLatLng(pt){
+ if(!pt)return null;
+ if(Array.isArray(pt)&&pt.length>=2&&Number.isFinite(Number(pt[0]))&&Number.isFinite(Number(pt[1]))){
+  return [Number(pt[0]),Number(pt[1])];
+ }
+ const lat=Number(pt.lat??pt.latitude);
+ const lng=Number(pt.lng??pt.lon??pt.longitude);
+ if(Number.isFinite(lat)&&Number.isFinite(lng)&&Math.abs(lat)<=90&&Math.abs(lng)<=180){
+  return [lat,lng];
+ }
+ return null;
+}
+
+function normalizeRadiusMeters(item,threatType){
+ if(!item)return 0;
+ const explicitM=Number(item.radius_m??item.impact_radius_m??item.blast_radius_m??item.damage_radius_m);
+ if(Number.isFinite(explicitM)&&explicitM>0)return explicitM;
+ const explicitKm=Number(item.radius_km??item.impact_radius_km??item.blast_radius_km??item.damage_radius_km);
+ if(Number.isFinite(explicitKm)&&explicitKm>0)return explicitKm*1000;
+ if(item.show_default_radius===true){
+  return (TYPES[validType(threatType)]||TYPES.general).defaultRadiusM||3000;
+ }
+ return 0;
+}
+
+function normalizeTrajectories(rawTrajectories,rawLaunchPoints){
+ const result=[];
+ if(Array.isArray(rawTrajectories)){
+  for(const tr of rawTrajectories){
+   if(!tr)continue;
+   const rawPts=Array.isArray(tr.points)?tr.points:Array.isArray(tr.waypoints)?tr.waypoints:Array.isArray(tr.path)?tr.path:[];
+   const points=rawPts.map(parseLatLng).filter(Boolean);
+   const origin=parseLatLng(tr.origin??tr.from??tr.launch);
+   const target=parseLatLng(tr.target??tr.to??tr.destination??tr.impact);
+   const merged=[...(origin?[origin]:[]),...points,...(target?[target]:[])];
+   if(merged.length<2)continue;
+   const tType=validType(tr.threat_type??tr.type);
+   result.push({
+    id:tr.id||'',
+    title:tr.title||tr.name||tr.label||'',
+    threat_type:tType,
+    points:merged,
+    radius_m:normalizeRadiusMeters(tr,tType),
+    radius_target:parseLatLng(tr.radius_center??tr.impact_point??tr.target)??merged[merged.length-1],
+    source:tr.source||tr.channel||'',
+    at_ms:Number.isFinite(tr.at_ms)?tr.at_ms:NaN
+   });
+  }
+ }
+ if(Array.isArray(rawLaunchPoints)){
+  for(const lp of rawLaunchPoints){
+   const start=parseLatLng(lp);
+   if(!start)continue;
+   const tType=validType(lp.threat_type??lp.type);
+   const wp=Array.isArray(lp.waypoints)?lp.waypoints.map(parseLatLng).filter(Boolean):[];
+   const end=parseLatLng(lp.target??lp.destination??lp.impact);
+   const pts=[start,...wp,...(end?[end]:[])];
+   if(pts.length>=2){
+    result.push({
+     id:lp.id||'',
+     title:lp.title||lp.name||'',
+     threat_type:tType,
+     points:pts,
+     radius_m:normalizeRadiusMeters(lp.impact||lp,tType),
+     radius_target:end||wp[wp.length-1]||start,
+     source:lp.source||lp.channel||'',
+     at_ms:Number.isFinite(lp.at_ms)?lp.at_ms:NaN
+    });
+   }
+  }
+ }
+ return result;
+}
+
+function normalizeImpactZones(rawZones,rawTrajectories,rawLaunchPoints){
+ const zones=[];
+ const pushZone=(latlng,radiusM,threatType,title,source,atMs)=>{
+  if(!latlng||!Number.isFinite(radiusM)||radiusM<=0)return;
+  zones.push({
+   lat:latlng[0],
+   lng:latlng[1],
+   radius_m:radiusM,
+   threat_type:validType(threatType),
+   title:title||'',
+   source:source||'',
+   at_ms:Number.isFinite(atMs)?atMs:NaN
+  });
+ };
+ if(Array.isArray(rawZones)){
+  for(const z of rawZones){
+   if(!z)continue;
+   const pt=parseLatLng(z.center??z.point??z);
+   const r=normalizeRadiusMeters(z,z.threat_type??z.type);
+   pushZone(pt,r,z.threat_type??z.type,z.title||z.name||z.label||'',z.source||z.channel||'',z.at_ms);
+  }
+ }
+ for(const tr of rawTrajectories){
+  if(tr.radius_m>0&&tr.radius_target){
+   pushZone(tr.radius_target,tr.radius_m,tr.threat_type,tr.title||'Зона ураження',tr.source,tr.at_ms);
+  }
+ }
+ if(Array.isArray(rawLaunchPoints)){
+  for(const lp of rawLaunchPoints){
+   if(!lp)continue;
+   const r=normalizeRadiusMeters(lp,lp.threat_type??lp.type);
+   if(r>0){
+    const center=parseLatLng(lp.impact_point??lp.target)??parseLatLng(lp);
+    pushZone(center,r,lp.threat_type??lp.type,lp.name||lp.title||'Радіус загрози',lp.source||lp.channel||'',lp.at_ms);
+   }
+  }
+ }
+ return zones;
+}
+
+function bearingDeg(a,b){
+ const lat1=a[0]*Math.PI/180,lat2=b[0]*Math.PI/180,dLon=(b[1]-a[1])*Math.PI/180;
+ const y=Math.sin(dLon)*Math.cos(lat2);
+ const x=Math.cos(lat1)*Math.sin(lat2)-Math.sin(lat1)*Math.cos(lat2)*Math.cos(dLon);
+ return (Math.atan2(y,x)*180/Math.PI+360)%360;
+}
+
+function renderTrajectoriesAndImpact(offline){
+ if(trajectoryLayer)trajectoryLayer.clearLayers();
+ if(impactLayer)impactLayer.clearLayers();
+ if(offline)return;
+
+ if(trajectoryLayer&&Array.isArray(trajectories)){
+  for(const tr of trajectories){
+   if(!Array.isArray(tr.points)||tr.points.length<2)continue;
+   const v=TYPES[tr.threat_type]||TYPES.missile;
+   const poly=L.polyline(tr.points,{
+    pane:'threatTrajectories',
+    color:v.color,
+    weight:3,
+    opacity:.88,
+    dashArray:tr.threat_type==='drone'||tr.threat_type==='molniya'?'7 6':'10 5'
+   }).addTo(trajectoryLayer);
+
+   const lastIdx=tr.points.length-1;
+   const prev=tr.points[lastIdx-1],end=tr.points[lastIdx];
+   const angle=bearingDeg(prev,end);
+   const arrowIcon=L.divIcon({
+    className:'trajectory-arrow-marker',
+    html:`<div class="trajectory-arrow" style="--traj-color:${v.color};transform:rotate(${angle}deg)">➤</div>`,
+    iconSize:[24,24],
+    iconAnchor:[12,12]
+   });
+   L.marker(end,{icon:arrowIcon,pane:'threatTrajectories',interactive:false,keyboard:false}).addTo(trajectoryLayer);
+
+   if(tr.title||tr.source){
+    const tip=document.createElement('span');
+    tip.textContent='🛤️ Траєкторія ('+v.label+')'+(tr.title?': '+tr.title:'')+(tr.source?' · '+tr.source:'');
+    poly.bindTooltip(tip,{sticky:true});
+   }
+  }
+ }
+
+ if(impactLayer&&Array.isArray(impactZones)){
+  for(const z of impactZones){
+   if(!Number.isFinite(z.lat)||!Number.isFinite(z.lng)||!Number.isFinite(z.radius_m)||z.radius_m<=0)continue;
+   const v=TYPES[z.threat_type]||TYPES.missile;
+   const circle=L.circle([z.lat,z.lng],{
+    pane:'threatImpact',
+    radius:z.radius_m,
+    color:v.color,
+    weight:2,
+    opacity:.9,
+    fillColor:v.color,
+    fillOpacity:.18,
+    dashArray:'5 4'
+   }).addTo(impactLayer);
+
+   const radiusLabel=z.radius_m>=1000?(z.radius_m/1000).toFixed(1)+' км':Math.round(z.radius_m)+' м';
+   const tip=document.createElement('span');
+   tip.textContent='💥 Радіус ('+v.label+'): '+radiusLabel+(z.title?' · '+z.title:'')+(z.source?' · '+z.source:'');
+   circle.bindTooltip(tip,{sticky:true});
+  }
+ }
+}
+
 function renderLaunchPoints(offline){
  if(!launchLayer)return;launchLayer.clearLayers();if(offline||!Array.isArray(launchPoints))return;
  for(const lp of launchPoints){
   if(!Number.isFinite(lp?.lat)||!Number.isFinite(lp?.lng))continue;
   const v=TYPES[validType(lp.threat_type)]||TYPES.missile;
-  const html=`<div class="launch-origin-pin" style="--launch-color:${v.color}" title="Місце запуску: ${lp.name}"><span>${v.icon}</span></div>`;
+  const titleText=lp.name||lp.title||'Невідомий район пуску';
+  const html=`<div class="launch-origin-pin" style="--launch-color:${v.color}" title="Місце запуску: ${titleText}"><span>${v.icon}</span></div>`;
   const m=L.marker([lp.lat,lp.lng],{
+   pane:'threatLaunch',
    icon:L.divIcon({className:'launch-origin-marker',html,iconSize:[34,34],iconAnchor:[17,17]}),
-   title:'Запуск · '+v.label+' · '+lp.name
+   title:'Запуск · '+v.label+' · '+titleText
   }).addTo(launchLayer);
   const tip=document.createElement('span');
-  tip.textContent='🚀 Місце запуску ('+v.label+'): '+lp.name;
+  tip.textContent='🚀 Місце запуску ('+v.label+'): '+titleText+(lp.source?' · '+lp.source:'');
   m.bindTooltip(tip);
  }
 }
@@ -141,6 +337,7 @@ function render(){
  renderAreaReasons(offline);
  if(boundaryMap)boundaryMap.render({states,districts,offline,selected:selected(),selectedDistrict:district});
  renderCities(offline);
+ renderTrajectoriesAndImpact(offline);
  renderLaunchPoints(offline);
  const d=$('districts'),districtScroll=d.scrollTop;d.replaceChildren();
  if(!offline)Object.entries(districts).filter(([,x])=>x.region===selected()).sort((a,b)=>a[0].localeCompare(b[0],'uk')).forEach(([label,x])=>{const v=view(x);d.append(row((civilReasonBadges(x).map(b=>(TYPES[b.type]||TYPES.general).icon).join(' ')||v.icon)+' '+label,v.label+(civilReasonBadges(x).some(b=>b.previous)?' · є раніше зазначені причини':''),v.color))});
@@ -151,7 +348,7 @@ function render(){
  if(!offline)events.filter(x=>filter==='all'||kind(x)===filter||x.threat_types.includes(filter)).slice(0,20).forEach(x=>{const v=view(x),icons=x.threat_types.map(t=>(TYPES[t]||TYPES.general).icon).join(' ')||v.icon,labels=x.threat_types.length?x.threat_types.map(t=>(TYPES[t]||TYPES.general).label).join(' / '):v.label;feed.append(row(icons+' '+labels+' · '+(x.city||x.district||name(x.region)),dateText(x.at_ms)+(x.district?' · '+name(x.region):''),v.color))});
  if(!feed.children.length)feed.textContent='Немає актуальних повідомлень за цим фільтром';
  feed.scrollTop=feedScroll;
- $('notice').textContent=offline?(lastError?'API OFFLINE: '+lastError:'Немає актуального зв’язку'):'Статуси за повідомленнями підключених каналів. Невідомий статус не означає відбій. Заливка показує адміністративні зони, а не місця перебування об’єктів.';
+ $('notice').textContent=offline?(lastError?'API OFFLINE: '+lastError:'Немає актуального зв’язку'):'Статуси за повідомленнями підключених каналів. Невідомий статус не означає відбій. Заливка показує адміністративні зони, а не точні координати цілей.';
  timer();
 }
 function beep(){
@@ -177,7 +374,12 @@ async function refresh(){
   const nextEvents=Array.isArray(data.events)?data.events.filter(x=>x&&regionNames.has(x.region)&&['active','ended'].includes(x.status)&&Number.isFinite(x.at_ms)).map(x=>({...clean(x),region:x.region,district:typeof x.district==='string'?x.district:null,city:Object.prototype.hasOwnProperty.call(CITY_CATALOG,x.city)?x.city:null,at_ms:x.at_ms})).sort((a,b)=>b.at_ms-a.at_ms):[];
   publicAdvisories=Array.isArray(data.public_advisories)?[...new Set(data.public_advisories.map(x=>x?.threat_type).filter(x=>CIVIL_REASON_TYPES.includes(x)))]:[];
   areaAdvisories=cleanAreaAdvisories(data.area_advisories,next,nextDistricts,nextCities);
-  launchPoints=Array.isArray(data.launch_points)?data.launch_points.filter(x=>x&&Number.isFinite(x.lat)&&Number.isFinite(x.lng)):[];
+  const rawLaunches=Array.isArray(data.launch_points)?data.launch_points.filter(x=>x&&Number.isFinite(Number(x.lat??x.latitude))&&Number.isFinite(Number(x.lng??x.lon??x.longitude))).map(x=>({...x,lat:Number(x.lat??x.latitude),lng:Number(x.lng??x.lon??x.longitude)})):[];
+  const rawTraj=Array.isArray(data.trajectories)?data.trajectories:Array.isArray(data.flight_paths)?data.flight_paths:[];
+  const rawZones=Array.isArray(data.impact_zones)?data.impact_zones:Array.isArray(data.threat_zones)?data.threat_zones:[];
+  launchPoints=rawLaunches;
+  trajectories=normalizeTrajectories(rawTraj,rawLaunches);
+  impactZones=normalizeImpactZones(rawZones,trajectories,rawLaunches);
   states=next;districts=nextDistricts;cities=nextCities;events=nextEvents;updated=data.updated_at_ms;failed=false;lastError='';
   if(wasOnline&&((previous.status!=='active'&&get(selected()).status==='active')||(previousArea.status!=='active'&&selectedState().status==='active')))beep();
  }catch(e){failed=true;lastError=e.name==='AbortError'?'Час очікування API вичерпано':e instanceof TypeError?'Мережева помилка або CORS':String(e.message||e);console.error('[AIR MONITOR]',e)}finally{busy=false;$('refresh').disabled=false;$('refresh').setAttribute('aria-busy','false');render()}
