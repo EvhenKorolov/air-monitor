@@ -25,7 +25,7 @@ const TYPES = {
  clear:{label:'Відбій тривоги',icon:'✅',theme:'green',color:'#35d878',anim:'clear'},
  unknown:{label:'Немає актуальних даних',icon:'⚪',theme:'gray',color:'#8693a5',anim:'default'}
 };
-let districts={},cities={},events=[],publicAdvisories=[],areaAdvisories=[];
+let districts={},cities={},events=[],trajectories=[],publicAdvisories=[],areaAdvisories=[];
 const ALL_VALID_TYPES=['general','drone','jet_uav','molniya','banderol','missile','ballistic','kab','mixed'];
 const validType=t=>ALL_VALID_TYPES.includes(t)?t:'general';
 const selected=()=>$('region').value;
@@ -59,7 +59,7 @@ function renderCities(offline){
  if(!cityLayer)return;cityLayer.clearLayers();if(offline)return;
  for(const [c,meta] of Object.entries(CITY_CATALOG)){
   if(!cities[c]||cities[c].status==='unknown')continue;
-  const effective=getCityState(c,false), ownView=view(effective);
+  const effective=getCityState(c,false);
   const badge=civilMarkerContent(cities[c].status==='active'?cities[c]:{status:effective.status},TYPES);
   const m=L.marker([meta.lat,meta.lng],{icon:L.divIcon({className:'civil-status-marker',html:badge.el,iconSize:[badge.width,32],iconAnchor:[badge.width/2,16]}),title:c+' · оголошений статус міста'}).addTo(cityLayer);
   const label=document.createElement('span');label.textContent=c+' · '+badge.label+' · статус для міста (не місце загрози)';m.bindTooltip(label);
@@ -123,6 +123,7 @@ function render(){
  renderPublicAdvisories(offline);
  renderAreaReasons(offline);
  if(boundaryMap)boundaryMap.render({states,districts,offline,selected:selected(),selectedDistrict:district});
+ if(trajectoryLayer)trajectoryLayer.setTrajectories(offline?[]:trajectories);
  renderCities(offline);
  const d=$('districts'),districtScroll=d.scrollTop;d.replaceChildren();
  if(!offline)Object.entries(districts).filter(([,x])=>x.region===selected()).sort((a,b)=>a[0].localeCompare(b[0],'uk')).forEach(([label,x])=>{const v=view(x);d.append(row((civilReasonBadges(x).map(b=>(TYPES[b.type]||TYPES.general).icon).join(' ')||v.icon)+' '+label,v.label+(civilReasonBadges(x).some(b=>b.previous)?' · є раніше зазначені причини':''),v.color))});
@@ -133,12 +134,11 @@ function render(){
  if(!offline)events.filter(x=>filter==='all'||kind(x)===filter||x.threat_types.includes(filter)).slice(0,20).forEach(x=>{const v=view(x),icons=x.threat_types.map(t=>(TYPES[t]||TYPES.general).icon).join(' ')||v.icon,labels=x.threat_types.length?x.threat_types.map(t=>(TYPES[t]||TYPES.general).label).join(' / '):v.label;feed.append(row(icons+' '+labels+' · '+(x.city||x.district||name(x.region)),dateText(x.at_ms)+(x.district?' · '+name(x.region):''),v.color))});
  if(!feed.children.length)feed.textContent='Немає актуальних повідомлень за цим фільтром';
  feed.scrollTop=feedScroll;
- $('notice').textContent=offline?(lastError?'API OFFLINE: '+lastError:'Немає актуального зв’язку'):'Статуси за повідомленнями підключених каналів. Невідомий статус не означає відбій. Заливка показує адміністративні зони, а не місця перебування об’єктів.';
+ $('notice').textContent=offline?(lastError?'API OFFLINE: '+lastError:'Немає актуального зв’язку'):'Статуси та напрямки руху цілей за повідомленнями підключених каналів. Невідомий статус не означає відбій.';
  timer();
 }
 const alertSounds=new AlertSounds({button:$('sound'),note:$('sound-note'),unlockButton:$('sound-unlock'),previewButton:$('sound-preview'),previewSelect:$('sound-preview-type'),documentRef:document,
  storage:(()=>{try{return window.localStorage}catch{return null}})(),contextFactory:()=>{const C=window.AudioContext||window.webkitAudioContext;return C?new C():null}});
-// Sound is enabled by default; browsers may require a real gesture to unlock it.
 alertSounds.unlock();
 function clean(a){return {status:['active','ended','unknown'].includes(a?.status)?a.status:'unknown',scope:a?.scope==='district'?'district':null,threat_type:validType(a?.threat_type),threat_types:civilReasonList(a?.threat_types,a?.threat_type),last_reported_threat_types:civilReasonList(a?.last_reported_threat_types,a?.last_reported_threat_type),last_reported_threat_type:CIVIL_REASON_TYPES.concat(['mixed']).includes(a?.last_reported_threat_type)?a.last_reported_threat_type:null,last_reported_threat_at_ms:Number.isFinite(a?.last_reported_threat_at_ms)?a.last_reported_threat_at_ms:NaN,started_at_ms:Number.isFinite(a?.started_at_ms)?a.started_at_ms:NaN,ended_at_ms:Number.isFinite(a?.ended_at_ms)?a.ended_at_ms:NaN}}
 const regionNames=new Set(regions.map(([r])=>r));
@@ -152,9 +152,10 @@ async function refresh(){
   const nextDistricts={};if(data.districts&&typeof data.districts==='object'&&!Array.isArray(data.districts))for(const [d,x] of Object.entries(data.districts))if(x&&regionNames.has(x.region))nextDistricts[d]={...clean(x),region:x.region};
   const nextCities={};if(data.cities&&typeof data.cities==='object'&&!Array.isArray(data.cities))for(const [c,x] of Object.entries(data.cities)){const m=Object.prototype.hasOwnProperty.call(CITY_CATALOG,c)?CITY_CATALOG[c]:null;if(m&&x&&m.region===x.region&&m.district===x.district)nextCities[c]={...clean(x),region:m.region,district:m.district};}
   const nextEvents=Array.isArray(data.events)?data.events.filter(x=>x&&regionNames.has(x.region)&&['active','ended'].includes(x.status)&&Number.isFinite(x.at_ms)).map(x=>({...clean(x),region:x.region,district:typeof x.district==='string'?x.district:null,city:Object.prototype.hasOwnProperty.call(CITY_CATALOG,x.city)?x.city:null,at_ms:x.at_ms})).sort((a,b)=>b.at_ms-a.at_ms):[];
+  const nextTrajectories=Array.isArray(data.trajectories)?data.trajectories.filter(t=>t&&Array.isArray(t.points)&&t.points.length>=2):[];
   publicAdvisories=Array.isArray(data.public_advisories)?[...new Set(data.public_advisories.map(x=>x?.threat_type).filter(x=>CIVIL_REASON_TYPES.includes(x)))]:[];
   areaAdvisories=cleanAreaAdvisories(data.area_advisories,next,nextDistricts,nextCities);
-  states=next;districts=nextDistricts;cities=nextCities;events=nextEvents;updated=data.updated_at_ms;failed=false;lastError='';
+  states=next;districts=nextDistricts;cities=nextCities;events=nextEvents;trajectories=nextTrajectories;updated=data.updated_at_ms;failed=false;lastError='';
   const currentArea=selectedState(false);
   const sounds=warningSoundChanges(previousArea,currentArea,previousPublic,publicAdvisories);
   const allowed=[...soundTypes(currentArea),...publicAdvisories];
@@ -165,6 +166,7 @@ async function refresh(){
 selectArea(selected());
 let ownLocation=null;
 const boundaryMap=map?new CivilBoundaryMap(map,regions,TYPES,{onSelect:(r,d)=>{ownLocation?.manualSelection();selectArea(r,d);render()}}):null;
+const trajectoryLayer=map&&typeof TelegramTrajectoryLayer!=='undefined'?new TelegramTrajectoryLayer(map,{pauseButton:$('traj-pause'),resetButton:$('traj-reset'),legendElement:$('traj-legend')}):null;
 if(boundaryMap)boundaryMap.load();else $('geometry-status').textContent='Карта недоступна';
 if(map&&boundaryMap){ownLocation=new OwnLocation(map,boundaryMap,tg,{parents:BOUNDARY_PARENTS,label:name,onSelect:(r,d)=>{selectArea(r,d);render();}});ownLocation.start();}else{$('locate').disabled=true;$('location-status').textContent='Карта недоступна';}
 $('region').onchange=()=>{ownLocation?.manualSelection();selectArea(selected());render();};$('district-select').onchange=()=>{alertSounds.clearPending();ownLocation?.manualSelection();cityOptions();render();};$('city-select').onchange=()=>{alertSounds.clearPending();ownLocation?.manualSelection();render();};$('filter').onchange=render;$('refresh').onclick=refresh;refresh();setInterval(timer,1000);setInterval(refresh,15000);setInterval(render,30000);
